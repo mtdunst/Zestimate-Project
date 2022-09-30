@@ -39,15 +39,17 @@ CLT_sales <-
   st_read("https://github.com/mafichman/MUSA_508_Lab/raw/main/Midterm/data/2022/studentData.geojson") %>%
   st_transform('ESRI:103500')
 
-sales_abridged <- CLT_sales[c(5,9,20,21,26,28,30:45,57:60,67,68,72)]
+sales_abridged <- CLT_sales[c(5,9,20,21,26,28,30:46,57:60,67,68,72)]
 
 sales_abridged.sf <- 
   sales_abridged %>% 
   st_as_sf(sf_column_name=geometry) %>%
-  st_transform('ESRI:103500')
-
-sales_abridged.sf <- sales_abridged.sf %>%
+  st_transform('ESRI:103500') %>%
   mutate(Age = 2022 - yearbuilt)
+
+sales_abridged.sf <-
+  sales_abridged.sf %>%
+  filter(units < 205)
 ```
 
 ```{r}
@@ -63,4 +65,34 @@ numericVars %>%
   geom_text(aes(label = round(r,digits=2)),size = 2)
 
 ```
+
+```{r}
+ggscatter(sales_abridged.sf,
+          x = "heatedarea",
+          y = "price",
+          add = "reg.line") +
+  stat_cor(label.y = 50000000) 
+```
+
+```{r}
+neighborhoods <- 
+  st_read("https://github.com/mtdunst/Zestimate-Project/raw/main/Neighborhoods.geojson") %>%
+  st_transform('ESRI:103500')
+
+neighborhoods.sf <- 
+  neighborhoods %>% 
+  st_as_sf(sf_column_name=geometry) %>%
+  st_transform('ESRI:103500')
+
+ggplot() +
+  geom_sf(data = neighborhoods.sf, fill = "grey40") +
+  geom_sf(data = sales_abridged.sf, aes(colour = q5(price)), 
+          show.legend = "point", size = .75) +
+  scale_colour_manual(values = palette5,
+                   labels=qBr(sales_abridged.sf,"price"),
+                   name="Quintile\nBreaks") +
+  labs(title="Sales Price, Charlotte Metro Area") +
+  mapTheme()
+```
+
 
