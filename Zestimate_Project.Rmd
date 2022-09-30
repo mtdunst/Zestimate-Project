@@ -1,0 +1,66 @@
+---
+title: "Zestimate Project"
+author: "Michael Dunst"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# You can set some global options for knitting chunks
+
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load some libraries
+
+library(tidyverse)
+library(sf)
+library(spdep)
+library(caret)
+library(ckanr)
+library(FNN)
+library(grid)
+library(gridExtra)
+library(ggcorrplot) # plot correlation plot
+library(corrr)      # another way to plot correlation plot
+library(kableExtra)
+library(jtools)     # for regression model plots
+library(ggstance) # to support jtools plots
+library(ggpubr)    # plotting R^2 value on ggplot point scatter
+library(broom.mixed) # needed for effects plots
+library(mapview)
+palette5 <- c("#25CB10", "#5AB60C", "#8FA108",   "#C48C04", "#FA7800")
+
+```
+
+```{r}
+#Import sales data, remove columns we won't need, set CRS for North Caroline
+CLT_sales <- 
+  st_read("https://github.com/mafichman/MUSA_508_Lab/raw/main/Midterm/data/2022/studentData.geojson") %>%
+  st_transform('ESRI:103500')
+
+sales_abridged <- CLT_sales[c(5,9,20,21,26,28,30:45,57:60,67,68,72)]
+
+sales_abridged.sf <- 
+  sales_abridged %>% 
+  st_as_sf(sf_column_name=geometry) %>%
+  st_transform('ESRI:103500')
+
+sales_abridged.sf <- sales_abridged.sf %>%
+  mutate(Age = 2022 - yearbuilt)
+```
+
+```{r}
+#Correlation Matrix
+numericVars <- 
+  select_if(st_drop_geometry(sales_abridged.sf), is.numeric) %>% na.omit()
+
+
+# yet another way to plot the correlation plot using the corrr library
+numericVars %>% 
+  correlate() %>% 
+  autoplot() +
+  geom_text(aes(label = round(r,digits=2)),size = 2)
+
+```
+
