@@ -139,7 +139,7 @@ schools.sf <-
   st_transform('ESRI:103500')
 
 ggplot() +
-  geom_sf(data = schools.sf, aes(fill=factor(Rank), color=factor(Rank))) +
+  geom_sf(data = schools.sf, aes(fill=factor(Quality), color=factor(Quality))) +
   scale_fill_brewer(palette="RdYlGn") +
   scale_color_brewer(palette="RdYlGn") +
   scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
@@ -213,7 +213,7 @@ sales_external_data.sf <- sales_external_data.sf[-c(28,29,36)]
 
 ```{r}
 reg1 <- lm(price ~ ., data = st_drop_geometry(sales_external_data.sf) %>% 
-                                 dplyr::select(price, park_nn1, park_nn2, park_nn3, fullbaths, heatedarea, npa, Rank, Age, bedrooms, numfirepla, halfbaths, HH_inc, college_perc))
+                                 dplyr::select(price, park_nn1, park_nn2, park_nn3, fullbaths, heatedarea, npa, Quality, Age, bedrooms, numfirepla, halfbaths, HH_inc, college_perc))
 
 summary(reg1)
 ```
@@ -222,13 +222,16 @@ summary(reg1)
 
 ```{r}
 #Re-engineering data as categorical: number of floors
-boston.sf <- 
-  boston.sf %>%
-  mutate(NUM_FLOORS.cat = case_when(
-                  NUM_FLOORS >= 0 & NUM_FLOORS < 3  ~ "Up to 2 Floors",
-                  NUM_FLOORS >= 3 & NUM_FLOORS < 4  ~ "3 Floors",
-                  NUM_FLOORS > 4                    ~ "4+ Floors"))
+sales_external_data.sf <- 
+  sales_external_data.sf %>%
+  mutate(NUM_FLOORS.cat = ifelse(storyheigh == "1 STORY" | storyheigh == "1.5 STORY" | storyheigh == "SPLIT LEVEL" | storyheigh == "2.0 STORY", "Up to 2 Floors",
+               ifelse(storyheigh == "2.5 STORY" | storyheigh == "3.0 STORY", "Up to 3 Floors", "4+ Floors")))
 ```
+
+```{r}
+#Re-engineer bedroom and bathroom data as categorical
+```
+
 
 ```{r}
 #Re-running multivariate correlation
