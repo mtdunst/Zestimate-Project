@@ -236,7 +236,7 @@ sales_external_data.sf <-
 ```{r}
 #Re-running multivariate correlation
 reg1 <- lm(price ~ ., data = st_drop_geometry(sales_external_data.sf) %>% 
-                                 dplyr::select(price, park_nn1, park_nn2, park_nn3, fullbaths, heatedarea, npa, Rank, Age, bedrooms, numfirepla, halfbaths, HH_inc, college_perc))
+                                 dplyr::select(price, park_nn1, park_nn2, park_nn3, fullbaths, heatedarea, npa, Quality, Age, bedrooms, numfirepla, halfbaths, HH_inc, college_perc, NUM_FLOORS.cat))
 
 summary(reg1)
 ```
@@ -244,17 +244,17 @@ summary(reg1)
 ```{r}
 #Creating training data
 inTrain <- createDataPartition(
-              y = paste(boston.sf$NUM_FLOORS.cat, boston.sf$Style, boston.sf$R_AC), 
+              y = paste(sales_external_data.sf$NUM_FLOORS.cat, sales_external_data.sf$heatedarea, sales_external_data.sf$bedrooms), 
               p = .60, list = FALSE)
-boston.training <- boston.sf[inTrain,] 
-boston.test <- boston.sf[-inTrain,]  
+charlotte.training <- sales_external_data.sf[inTrain,] 
+charlotte.test <- sales_external_data.sf[-inTrain,]  
 
-reg.training <- lm(SalePrice ~ ., data = st_drop_geometry(boston.training) %>% 
-                                    dplyr::select(SalePrice, LivingArea, Style, 
-                                               GROSS_AREA, NUM_FLOORS.cat,
-                                               R_BDRMS, R_FULL_BTH, R_HALF_BTH, 
-                                               R_KITCH, R_AC, R_FPLACE,
-                                               crimes.Buffer))
+reg.training <- lm(price ~ ., data = st_drop_geometry(charlotte.training) %>% 
+                                    dplyr::select(price, heatedarea, 
+                                               Quality, NUM_FLOORS.cat,
+                                               bedrooms, fullbaths, halfbaths, 
+                                               park_nn1, npa,
+                                               Age, HH_inc, college_perc))
 ```
 
 ```{r}
