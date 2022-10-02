@@ -29,6 +29,7 @@ library(ggstance) # to support jtools plots
 library(ggpubr)    # plotting R^2 value on ggplot point scatter
 library(broom.mixed) # needed for effects plots
 library(mapview)
+library(tidycensus)
 palette5 <- c("#25CB10", "#5AB60C", "#8FA108",   "#C48C04", "#FA7800")
 
 ```
@@ -75,6 +76,7 @@ ggscatter(sales_abridged.sf,
 ```
 
 ```{r}
+#Mapping Home Sales Price
 neighborhoods <- 
   st_read("https://github.com/mtdunst/Zestimate-Project/raw/main/Neighborhoods.geojson") %>%
   st_transform('ESRI:103500')
@@ -95,4 +97,290 @@ ggplot() +
   mapTheme()
 ```
 
+```{r}
+install.packages('ggsn')
+library(ggsn)
+
+#Mapping external data sets
+ggplot() +
+  geom_sf(data = neighborhoods.sf, color="navy") +
+  labs(title="Neighborhoods, Charlotte Metro Area") +
+  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
+  mapTheme()
+
+```
+
+```{r}
+parks <- 
+  st_read("https://github.com/mtdunst/Zestimate-Project/raw/main/Parks.geojson") %>%
+  st_transform('ESRI:103500')
+
+parks.sf <- 
+  parks %>% 
+  st_as_sf(sf_column_name=geometry) %>%
+  st_transform('ESRI:103500')
+
+ggplot() +
+  geom_sf(data = neighborhoods.sf, fill = "grey70") +
+  geom_sf(data = parks.sf, color="darkgreen") +
+  labs(title="Park Locations, Charlotte Metro Area") +
+  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
+  mapTheme()
+```
+
+```{r}
+schools <- 
+  st_read("https://github.com/mtdunst/Zestimate-Project/raw/main/Schools.geojson") %>%
+  st_transform('ESRI:103500')
+
+schools.sf <- 
+  schools %>% 
+  st_as_sf(sf_column_name=geometry) %>%
+  st_transform('ESRI:103500')
+
+ggplot() +
+  geom_sf(data = schools.sf, aes(fill=factor(Rank), color=factor(Rank))) +
+  scale_fill_brewer(palette="RdYlGn") +
+  scale_color_brewer(palette="RdYlGn") +
+  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
+  labs(title="School Quality, Charlotte Metro Area") +
+  mapTheme()
+```
+
+```{r}
+#Joining external data
+
+#Spatial join neighborhood
+sales_neighborhoods.sf <- st_join(sales_abridged.sf, neighborhoods.sf)
+sales_neighborhoods.sf <- sales_neighborhoods.sf[-c(31,32,34,35)]
+
+#Spatial join school district
+sales_schools.sf <- st_join(sales_neighborhoods.sf, schools.sf)
+sales_schools.sf <- sales_schools.sf[-c(32:38)]
+
+#Nearest neighbor to parks
+sales_external_data.sf <-
+  sales_schools.sf %>% 
+    mutate(
+      park_nn1 = nn_function(st_coordinates(sales_schools.sf), 
+                              st_coordinates(parks.sf), k = 1),
+      
+      park_nn2 = nn_function(st_coordinates(sales_schools.sf), 
+                              st_coordinates(parks.sf), k = 2), 
+      
+      park_nn3 = nn_function(st_coordinates(sales_schools.sf), 
+                              st_coordinates(parks.sf), k = 3))
+```
+
+```{r}
+#Re-running correlation table
+numericVars <- 
+  select_if(st_drop_geometry(sales_external_data.sf), is.numeric) %>% na.omit()
+
+
+# yet another way to plot the correlation plot using the corrr library
+numericVars %>% 
+  correlate() %>% 
+  autoplot() +
+  geom_text(aes(label = round(r,digits=2)),size = 2)
+```
+
+```{r}
+#Get basic demographic information
+CLT_demo.sf <- 
+  get_acs(geography = "tract", 
+          variables = c("B19013_001E", "B15003_022E","B15003_001E"), 
+          year=2020, state=37, county=119, 
+          geometry=TRUE, output="wide") %>%
+  st_transform('ESRI:103500') %>%
+  dplyr::select( -NAME, -B19013_001M, -B15003_022M, -B15003_001M)
+
+CLT_demo.sf <-
+  CLT_demo.sf %>%
+  rename(HH_inc = B19013_001E, 
+         College = B15003_022E,
+         College_age_pop = B15003_001E) %>%
+  mutate(college_perc = College/College_age_pop) %>%
+  dplyr::select( -College, -College_age_pop)
+```
+
+```{r}
+#Join demo info to sales
+sales_external_data.sf <- st_join(sales_external_data.sf, CLT_demo.sf)
+sales_external_data.sf <- sales_external_data.sf[-c(28,29,36)]
+```
+
+
+```{r}
+reg1 <- lm(price ~ ., data = st_drop_geometry(sales_external_data.sf) %>% 
+                                 dplyr::select(price, park_nn1, park_nn2, park_nn3, fullbaths, heatedarea, npa, Rank, Age, bedrooms, numfirepla, halfbaths, HH_inc, college_perc))
+
+summary(reg1)
+```
+
+-------------- data from lab instructions below here --------------
+
+```{r}
+#Re-engineering data as categorical: number of floors
+boston.sf <- 
+  boston.sf %>%
+  mutate(NUM_FLOORS.cat = case_when(
+                  NUM_FLOORS >= 0 & NUM_FLOORS < 3  ~ "Up to 2 Floors",
+                  NUM_FLOORS >= 3 & NUM_FLOORS < 4  ~ "3 Floors",
+                  NUM_FLOORS > 4                    ~ "4+ Floors"))
+```
+
+```{r}
+#Re-running multivariate correlation
+reg1 <- lm(price ~ ., data = st_drop_geometry(sales_external_data.sf) %>% 
+                                 dplyr::select(price, park_nn1, park_nn2, park_nn3, fullbaths, heatedarea, npa, Rank, Age, bedrooms, numfirepla, halfbaths, HH_inc, college_perc))
+
+summary(reg1)
+```
+
+```{r}
+#Creating training data
+inTrain <- createDataPartition(
+              y = paste(boston.sf$NUM_FLOORS.cat, boston.sf$Style, boston.sf$R_AC), 
+              p = .60, list = FALSE)
+boston.training <- boston.sf[inTrain,] 
+boston.test <- boston.sf[-inTrain,]  
+
+reg.training <- lm(SalePrice ~ ., data = st_drop_geometry(boston.training) %>% 
+                                    dplyr::select(SalePrice, LivingArea, Style, 
+                                               GROSS_AREA, NUM_FLOORS.cat,
+                                               R_BDRMS, R_FULL_BTH, R_HALF_BTH, 
+                                               R_KITCH, R_AC, R_FPLACE,
+                                               crimes.Buffer))
+```
+
+```{r}
+#Creating predictions and calculating Mean Absolute Error (MAE) and Mean Absolute Percent Error (MAPE)
+boston.test <-
+  boston.test %>%
+  mutate(SalePrice.Predict = predict(reg.training, boston.test),
+         SalePrice.Error = SalePrice.Predict - SalePrice,
+         SalePrice.AbsError = abs(SalePrice.Predict - SalePrice),
+         SalePrice.APE = (abs(SalePrice.Predict - SalePrice)) / SalePrice.Predict)%>%
+  filter(SalePrice < 5000000)
+
+mean(boston.test$SalePrice.AbsError, na.rm = T)
+mean(boston.test$SalePrice.APE, na.rm = T)
+```
+
+```{r}
+#Visualizing prediction errors
+
+#Predicted vs observed sales price
+
+```
+
+```{r}
+#Cross-validation
+fitControl <- trainControl(method = "cv", number = 100)
+set.seed(825)
+
+reg.cv <- 
+  train(SalePrice ~ ., data = st_drop_geometry(boston.sf) %>% 
+                                dplyr::select(SalePrice, 
+                                LivingArea, Style, GROSS_AREA, 
+                                NUM_FLOORS.cat, R_BDRMS, R_FULL_BTH, 
+                                R_HALF_BTH, R_KITCH, R_AC, 
+                                R_FPLACE, crimes.Buffer), 
+     method = "lm", trControl = fitControl, na.action = na.pass)
+
+reg.cv
+```
+
+```{r}
+#Mapping absolute sales price error
+```
+
+```{r}
+#Calculating Moran's I
+fitControl <- trainControl(method = "cv", number = 100)
+set.seed(825)
+
+reg.cv <- 
+  train(SalePrice ~ ., data = st_drop_geometry(boston.sf) %>% 
+                                dplyr::select(SalePrice, 
+                                LivingArea, Style, GROSS_AREA, 
+                                NUM_FLOORS.cat, R_BDRMS, R_FULL_BTH, 
+                                R_HALF_BTH, R_KITCH, R_AC, 
+                                R_FPLACE, crimes.Buffer), 
+     method = "lm", trControl = fitControl, na.action = na.pass)
+
+reg.cv
+```
+
+```{r}
+#Adjusting for neighborhod
+fitControl <- trainControl(method = "cv", number = 100)
+set.seed(825)
+
+reg.cv <- 
+  train(SalePrice ~ ., data = st_drop_geometry(boston.sf) %>% 
+                                dplyr::select(SalePrice, 
+                                LivingArea, Style, GROSS_AREA, 
+                                NUM_FLOORS.cat, R_BDRMS, R_FULL_BTH, 
+                                R_HALF_BTH, R_KITCH, R_AC, 
+                                R_FPLACE, crimes.Buffer), 
+     method = "lm", trControl = fitControl, na.action = na.pass)
+
+reg.cv
+```
+
+```{r}
+fitControl <- trainControl(method = "cv", number = 100)
+set.seed(825)
+
+reg.cv <- 
+  train(SalePrice ~ ., data = st_drop_geometry(boston.sf) %>% 
+                                dplyr::select(SalePrice, 
+                                LivingArea, Style, GROSS_AREA, 
+                                NUM_FLOORS.cat, R_BDRMS, R_FULL_BTH, 
+                                R_HALF_BTH, R_KITCH, R_AC, 
+                                R_FPLACE, crimes.Buffer), 
+     method = "lm", trControl = fitControl, na.action = na.pass)
+
+reg.cv
+```
+
+```{r}
+#Neighborhood effect results
+fitControl <- trainControl(method = "cv", number = 100)
+set.seed(825)
+
+reg.cv <- 
+  train(SalePrice ~ ., data = st_drop_geometry(boston.sf) %>% 
+                                dplyr::select(SalePrice, 
+                                LivingArea, Style, GROSS_AREA, 
+                                NUM_FLOORS.cat, R_BDRMS, R_FULL_BTH, 
+                                R_HALF_BTH, R_KITCH, R_AC, 
+                                R_FPLACE, crimes.Buffer), 
+     method = "lm", trControl = fitControl, na.action = na.pass)
+
+reg.cv
+```
+
+```{r}
+#Mapping MAPE by neighborhood
+fitControl <- trainControl(method = "cv", number = 100)
+set.seed(825)
+
+reg.cv <- 
+  train(SalePrice ~ ., data = st_drop_geometry(boston.sf) %>% 
+                                dplyr::select(SalePrice, 
+                                LivingArea, Style, GROSS_AREA, 
+                                NUM_FLOORS.cat, R_BDRMS, R_FULL_BTH, 
+                                R_HALF_BTH, R_KITCH, R_AC, 
+                                R_FPLACE, crimes.Buffer), 
+     method = "lm", trControl = fitControl, na.action = na.pass)
+
+reg.cv
+```
+
+```{r}
+#Scatter plot of MAPE by neighborhood mean price
+```
 
