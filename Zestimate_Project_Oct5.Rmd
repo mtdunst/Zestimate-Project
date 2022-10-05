@@ -236,12 +236,29 @@ sales_external_data.sf <-
                ifelse(storyheigh == "2.5 STORY" | storyheigh == "3.0 STORY", "Up to 3 Floors", "4+ Floors")))
 ```
 
+### Tally of Full & Half Baths
 ```{r}
-#Re-engineer bedroom and bathroom data as categorical
+fullbth <- sales_external_data.sf %>% 
+  group_by(fullbaths) %>% 
+  tally()
+
+halfbth<- sales_external_data.sf %>% 
+  group_by(halfbaths) %>% 
+  tally() 
+```
+
+
+```{r}
+#Re-engineer bedroom as categorical
 sales_external_data.sf <- 
   sales_external_data.sf %>%
   mutate(NUM_BEDS.cat = ifelse(bedrooms <= 2, "Up to 2 Bedrooms",
                                ifelse(bedrooms == 3 | bedrooms == 4, "Up to 4 Bedrooms", "5+ Bedrooms")))
+#Re-engineer bathroom data as categorical
+sales_external_data.sf <- 
+  sales_external_data.sf %>%
+  mutate(NUM_BATHS.cat = ifelse(fullbaths <= 2, "Up to 2 Bathroomss",
+                               ifelse(fullbaths == 3 | fullbaths == 4, "Up to 4 Bathrooms", "5+ Bathrooms")))
 ```
 
 
