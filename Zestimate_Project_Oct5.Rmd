@@ -157,7 +157,7 @@ ggplot() +
 ### Grocery Stores
 ```{r}
 grocery <- 
-  st_read("https://github.com/mtdunst/Zestimate-Project/blob/main/Grocery_pts.geojson") %>%
+  st_read("Grocery_pts.geojson") %>%
   st_transform('ESRI:103500')
 
 grocery.sf <- 
@@ -166,11 +166,10 @@ grocery.sf <-
   st_transform('ESRI:103500')
 
 ggplot() +
-  geom_sf(data = grocery.sf, aes(fill=factor(Quality), color=factor(Quality))) +
-  scale_fill_brewer(palette="RdYlGn") +
-  scale_color_brewer(palette="RdYlGn") +
-  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
+  geom_sf(data = neighborhoods.sf, fill = "grey70") +
+  geom_sf(data = grocery.sf, color="deepskyblue") +
   labs(title="Grocery Store Locations, Charlotte Metro Area") +
+  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
   mapTheme()
 ```
 
