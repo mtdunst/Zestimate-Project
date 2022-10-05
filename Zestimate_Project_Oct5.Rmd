@@ -154,6 +154,25 @@ ggplot() +
   labs(title="School Quality, Charlotte Metro Area") +
   mapTheme()
 ```
+### Grocery Stores
+```{r}
+grocery <- 
+  st_read("https://github.com/mtdunst/Zestimate-Project/blob/main/Grocery_pts.geojson") %>%
+  st_transform('ESRI:103500')
+
+grocery.sf <- 
+  grocery %>% 
+  st_as_sf(sf_column_name=geometry) %>%
+  st_transform('ESRI:103500')
+
+ggplot() +
+  geom_sf(data = grocery.sf, aes(fill=factor(Quality), color=factor(Quality))) +
+  scale_fill_brewer(palette="RdYlGn") +
+  scale_color_brewer(palette="RdYlGn") +
+  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
+  labs(title="Grocery Store Locations, Charlotte Metro Area") +
+  mapTheme()
+```
 
 ```{r}
 #Joining external data
