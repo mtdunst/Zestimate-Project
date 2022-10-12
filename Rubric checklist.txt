@@ -1,0 +1,20 @@
+Introduction
+Summary Statistics
+Correlation Matrix - done - line ~295
+Home prices scatterplots - done - line ~197
+Map Home Prices - done - line ~98
+3 interesting maps - done - line ~232
+Bonus for something extra engaging
+Methods
+Table of results (training set)
+Table of goodness of fit (test set)
+CV Results
+Pred vs Obs Scatterplot
+Residuals Map w/ Moran's I
+Predicted Map (Test Set)
+MAPE map by neighborhood
+Scatterplot - MAPE by neighborhood mean price
+Split by Census Groups
+Discussion - Accuracy
+Discussion - Generalizability
+Conclusion & recommendation
