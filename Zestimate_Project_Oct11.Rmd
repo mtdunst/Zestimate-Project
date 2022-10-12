@@ -1,21 +1,22 @@
 ---
 title: "Zestimate Project"
-author: "Michael Dunst"
+author: "Michael Dunst & Kemi Richards"
 date: "`r Sys.Date()`"
-output: html_document
+output: 
+html_document:
+  theme: cosmo
+    toc: true
+    toc_depth: 3
+    toc_float: true
+  code_folding: hide 
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-# You can set some global options for knitting chunks
-
-knitr::opts_chunk$set(echo = TRUE)
-
 # Load some libraries
 rm(list = ls())
 library(tidycensus)
 library(viridis)
-census_api_key("8c8e36c4b5046c4d7f8a5d9f0f7a7d0ddde86e8b")
 library(tidyverse)
 library(sf)
 library(spdep)
@@ -33,7 +34,9 @@ library(ggpubr)    # plotting R^2 value on ggplot point scatter
 library(broom.mixed) # needed for effects plots
 library(stargazer)
 
-# functions and data directory
+# Functions and data directory
+census_api_key("8c8e36c4b5046c4d7f8a5d9f0f7a7d0ddde86e8b")
+
 root.dir = "https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-Landing/master/DATA/"
 
 source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-Landing/master/functions.r")
@@ -41,7 +44,27 @@ source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-L
 palette5 <- c("#25CB10", "#5AB60C", "#8FA108",   "#C48C04", "#FA7800")
 
 ```
+# Introduction
+Welcome! **The purpose of this project is to produce an algorithm (model) that can help the online real-estate website, Zillow.com, predict home sale prices with greater accuracy.** Improving real-estate valuations are important for several reasons. Namely it:
 
+1. Improves user experience 
+2. Provides context for anticipated property taxes and homeowner's insurance
+3. Alleviates historic and systemic biases commonplace with home valuations in neighborhoods of color
+
+However, for this project we were **not** allowed to use sales data towards our algorithm. This rule added a level of difficulty because sales data is a strong predictor towards home valuation (e.g. the sales' price of your neighbor's home is likely very similar to the sales price of your home). We were able to make up for this by emphasizing other variables such as # of floors, bedrooms, bathrooms, the quality of nearby schools, as well as a home's proximity to nearby grocery stores. Overall, our model is **[XXXXXX]**
+
+# Data:
+To gather data, our team focused on Mecklenberg County, NC (Charlotte Metro Area) and sourced information from the county's open data website, as well as the American Community Survey and U.S.Census. 
+
+Briefly describe your methods for gathering the data.
+Present a table of summary statistics with variable descriptions. Sort these variables by their category (internal characteristics, amenities/public services or spatial structure). Check out the `stargazer` package for this.
+Present a correlation matrix
+Present 4 home price correlation scatterplots that you think are of interest. I’m going to look for interesting open data that you’ve integrated with the home sale observations.
+Develop 1 map of your dependent variable (sale price)
+Develop 3 maps of 3 of your most interesting independent variables.
+Include any other maps/graphs/charts you think might be of interest.
+ 
+## Gathering
 
 ```{r}
 #Import sales data, remove columns we won't need, set CRS for North Carolina
@@ -173,10 +196,13 @@ ggplot() +
   scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
   mapTheme()
 ```
+```{r}
+#Join demo info to sales
+sales_external_data.sf <- st_join(sales_external_data.sf, CLT_demo.sf)
+```
+
 
 ```{r}
-#Joining external data
-
 #Spatial join neighborhood
 sales_neighborhoods.sf <- st_join(sales_abridged.sf, neighborhoods.sf)
 sales_neighborhoods.sf <- sales_neighborhoods.sf[-c(31,32,34,35)]
@@ -227,6 +253,7 @@ ggplot(sales_external_data.sf, aes(x=college_perc, y=price)) +
   xlab("Percent of Residents with College Degree")
 
 ```
+
 ```{r}
 #Mapping external data
 ggplot() +
