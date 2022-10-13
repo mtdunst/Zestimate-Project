@@ -1,0 +1,621 @@
+---
+title: "Zestimate Project"
+author: "Michael Dunst & Kemi Richards"
+date: "`r Sys.Date()`"
+output: 
+html_document:
+  theme: cosmo
+    toc: true
+    toc_depth: 3
+    toc_float: true
+  code_folding: hide 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Load some libraries
+rm(list = ls())
+library(tidycensus)
+library(viridis)
+library(tidyverse)
+library(sf)
+library(spdep)
+library(caret)
+library(ckanr)
+library(FNN)
+library(grid)
+library(gridExtra)
+library(ggcorrplot) # plot correlation plot
+library(corrr)      # another way to plot correlation plot
+library(kableExtra)
+library(jtools)     # for regression model plots
+library(ggstance) # to support jtools plots
+library(ggpubr)    # plotting R^2 value on ggplot point scatter
+library(broom.mixed) # needed for effects plots
+library(stargazer)
+options(scipen=999) #scientific notation off
+
+# Functions and data directory
+census_api_key("8c8e36c4b5046c4d7f8a5d9f0f7a7d0ddde86e8b")
+
+root.dir = "https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-Landing/master/DATA/"
+
+source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-Landing/master/functions.r")
+
+palette5 <- c("#25CB10", "#5AB60C", "#8FA108",   "#C48C04", "#FA7800")
+
+```
+# Introduction
+Welcome! **The purpose of this project is to produce an algorithm (model) that can help the online real-estate website, Zillow.com, predict home sale prices with greater accuracy.** Improving real-estate valuations are important for several reasons. Namely it:
+
+1. Improves user experience 
+2. Provides context for anticipated property taxes and homeowner's insurance
+3. Alleviates historic and systemic biases commonplace with home valuations in neighborhoods of color
+
+However, for this project we were **not** allowed to use sales data towards our algorithm. This rule added a level of difficulty because sales data is a strong predictor towards home valuation (e.g. the sales' price of your neighbor's home is likely very similar to the sales price of your home). We were able to make up for this by emphasizing other variables such as # of floors, bedrooms, bathrooms, the quality of nearby schools, as well as a home's proximity to nearby grocery stores. Overall, our model is **[XXXXXX]**
+
+# Data:
+To gather data, our team focused on Mecklenberg County, NC (Charlotte Metro Area) and sourced information from the county's open data website, as well as the American Community Survey and U.S.Census. 
+
+Briefly describe your methods for gathering the data.
+Present a table of summary statistics with variable descriptions. Sort these variables by their category (internal characteristics, amenities/public services or spatial structure). Check out the `stargazer` package for this.
+Present a correlation matrix
+Present 4 home price correlation scatterplots that you think are of interest. I’m going to look for interesting open data that you’ve integrated with the home sale observations.
+Develop 1 map of your dependent variable (sale price)
+Develop 3 maps of 3 of your most interesting independent variables.
+Include any other maps/graphs/charts you think might be of interest.
+ 
+## Gathering
+
+```{r}
+#Import sales data, remove columns we won't need, set CRS for North Carolina
+CLT_sales <- 
+  st_read("https://github.com/mafichman/MUSA_508_Lab/raw/main/Midterm/data/2022/studentData.geojson") %>%
+  st_transform('ESRI:103500')
+
+sales_abridged <- CLT_sales[c(5,9,20,21,26,28,30:46,57:60,67,68,72)]
+
+sales_abridged.sf <- 
+  sales_abridged %>% 
+  st_as_sf(sf_column_name=geometry) %>%
+  st_transform('ESRI:103500') %>%
+  mutate(Age = 2022 - yearbuilt)
+
+sales_abridged.sf <-
+  sales_abridged.sf %>%
+  filter(units < 205)
+```
+
+```{r}
+#Correlation Matrix
+numericVars <- 
+  select_if(st_drop_geometry(sales_abridged.sf), is.numeric) %>% na.omit()
+
+
+# yet another way to plot the correlation plot using the corrr library
+numericVars %>% 
+  correlate() %>% 
+  autoplot() +
+  geom_text(aes(label = round(r,digits=2)),size = 2)
+
+```
+
+```{r}
+ggscatter(sales_abridged.sf,
+          x = "heatedarea",
+          y = "price",
+          add = "reg.line") +
+  stat_cor(label.y = 50000000) 
+```
+
+```{r}
+#Mapping Home Sales Price
+neighborhoods <- 
+  st_read("https://github.com/mtdunst/Zestimate-Project/raw/main/Neighborhoods.geojson") %>%
+  st_transform('ESRI:103500')
+
+neighborhoods.sf <- 
+  neighborhoods %>% 
+  st_as_sf(sf_column_name=geometry) %>%
+  st_transform('ESRI:103500')
+
+ggplot() +
+  geom_sf(data = neighborhoods.sf, fill = "grey40") +
+  geom_sf(data = sales_abridged.sf, aes(colour = q5(price)), 
+          show.legend = "point", size = .75) +
+  scale_colour_manual(values = palette5,
+                   labels=qBr(sales_abridged.sf,"price"),
+                   name="Quintile\nBreaks") +
+  labs(title="Sales Price, Charlotte Metro Area") +
+  labs(color = "Observed Sales Price (quintiles)") +
+  mapTheme()
+```
+
+```{r}
+install.packages('ggsn')
+library(ggsn)
+
+#Mapping external data sets
+ggplot() +
+  geom_sf(data = neighborhoods.sf, color="navy") +
+  labs(title="Neighborhoods, Charlotte Metro Area") +
+  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
+  mapTheme()
+
+```
+
+```{r}
+parks <- 
+  st_read("https://github.com/mtdunst/Zestimate-Project/raw/main/Parks.geojson") %>%
+  st_transform('ESRI:103500')
+
+parks.sf <- 
+  parks %>% 
+  st_as_sf(sf_column_name=geometry) %>%
+  st_transform('ESRI:103500')
+
+ggplot() +
+  geom_sf(data = neighborhoods.sf, fill = "grey70") +
+  geom_sf(data = parks.sf, color="darkgreen") +
+  labs(title="Park Locations, Charlotte Metro Area") +
+  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
+  mapTheme()
+```
+
+```{r}
+schools <- 
+  st_read("https://github.com/mtdunst/Zestimate-Project/raw/main/Schools.geojson") %>%
+  st_transform('ESRI:103500')
+
+schools.sf <- 
+  schools %>% 
+  st_as_sf(sf_column_name=geometry) %>%
+  st_transform('ESRI:103500')
+
+ggplot() +
+  geom_sf(data = schools.sf, aes(fill=factor(Quality), color=factor(Quality))) +
+  scale_fill_brewer(palette="RdYlGn") +
+  scale_color_brewer(palette="RdYlGn") +
+  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
+  labs(title="School Quality, Charlotte Metro Area") +
+  mapTheme()
+```
+### Grocery Stores
+```{r}
+grocery <- 
+  st_read("Grocery_pts.geojson") %>%
+  st_transform('ESRI:103500')
+
+grocery.sf <- 
+  grocery %>% 
+  st_as_sf(sf_column_name=geometry) %>%
+  st_transform('ESRI:103500')
+
+ggplot() +
+  geom_sf(data = neighborhoods.sf, fill = "grey70") +
+  geom_sf(data = grocery.sf, color="deepskyblue") +
+  labs(title="Grocery Store Locations, Charlotte Metro Area") +
+  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
+  mapTheme()
+```
+```{r}
+#Spatial join neighborhood
+sales_neighborhoods.sf <- st_join(sales_abridged.sf, neighborhoods.sf)
+sales_neighborhoods.sf <- sales_neighborhoods.sf[-c(31,32,34,35)]
+
+#Spatial join school district
+sales_schools.sf <- st_join(sales_neighborhoods.sf, schools.sf)
+sales_schools.sf <- sales_schools.sf[-c(32:38)]
+
+#Nearest neighbor to parks and grocery stores
+sales_external_data.sf <-
+  sales_schools.sf %>% 
+    mutate(
+      park_nn = nn_function(st_coordinates(sales_schools.sf), 
+                              st_coordinates(parks.sf), k = 2),
+      
+      grocery_nn = nn_function(st_coordinates(sales_schools.sf),
+                                st_coordinates(grocery.sf), k = 2))
+```
+
+```{r}
+#Get basic demographic information
+CLT_demo.sf <- 
+  get_acs(geography = "tract", 
+          variables = c("B19013_001E", "B15003_022E","B15003_001E"), 
+          year=2020, state=37, county=119, 
+          geometry=TRUE, output="wide") %>%
+  st_transform('ESRI:103500') %>%
+  dplyr::select( -NAME, -B19013_001M, -B15003_022M, -B15003_001M)
+
+CLT_demo.sf <-
+  CLT_demo.sf %>%
+  rename(HH_inc = B19013_001E, 
+         College = B15003_022E,
+         College_age_pop = B15003_001E) %>%
+  mutate(college_perc = College/College_age_pop) %>%
+  dplyr::select( -College, -College_age_pop)
+```
+
+```{r}
+#Join demo info to sales
+sales_external_data.sf <- st_join(sales_external_data.sf, CLT_demo.sf)
+```
+
+```{r}
+
+
+
+#Scatterplot home price vs. features
+ggplot(sales_external_data.sf, aes(x=Quality, y=price)) +
+  geom_point(alpha=0.15) +
+  geom_smooth(method=lm, linetype="dashed") +
+  scale_y_continuous(limits = c(0, 5000000)) +
+  stat_regline_equation(label.y = 5000000, aes(label = ..eq.label..)) +
+  stat_regline_equation(label.y = 4500000, aes(label = ..rr.label..)) +
+  labs(title="School Quality vs Home Price", subtitle="Charlotte Metro Area") +
+  ylab("Home Price (in dollars)") +
+  xlab("High School District Quality")
+
+ggplot(sales_external_data.sf, aes(x=heatedarea, y=price)) +
+  geom_point(alpha=0.15) +
+  geom_smooth(method=lm, linetype="dashed") +
+  scale_y_continuous(limits = c(0, 5000000)) +
+  stat_regline_equation(label.y = 5000000, aes(label = ..eq.label..)) +
+  stat_regline_equation(label.y = 4500000, aes(label = ..rr.label..)) +
+  labs(title="Floor Area vs Home Price", subtitle="Charlotte Metro Area") +
+  ylab("Home Price (in dollars)") +
+  xlab("SF of Heated Floor")
+
+ggplot(sales_external_data.sf, aes(x=college_perc, y=price)) +
+  geom_point(alpha=0.15) +
+  geom_smooth(method=lm, linetype="dashed") +
+  scale_y_continuous(limits = c(0, 5000000)) +
+  scale_x_continuous(limits = c(0, 0.75)) +
+  stat_regline_equation(label.y = 5000000, aes(label = ..eq.label..)) +
+  stat_regline_equation(label.y = 4500000, aes(label = ..rr.label..)) +
+  labs(title="Educational Attainment vs Home Price", subtitle="Charlotte Metro Area") +
+  ylab("Home Price (in dollars)") +
+  xlab("Percent of Residents with College Degree")
+
+```
+
+```{r}
+#Mapping external data
+ggplot() +
+  geom_sf(data = neighborhoods.sf, fill = "grey30") +
+  geom_sf(data = sales_abridged.sf, aes(colour = q5(price)), 
+          show.legend = "point", size = .75) +
+  scale_colour_manual(values = palette5,
+                   labels=qBr(sales_abridged.sf,"price"),
+                   name="Quintile\nBreaks") +
+  geom_sf(data = grocery.sf, color="deepskyblue") +
+  labs(title="Grocery Store Locations vs Home Price", subtitle="Charlotte Metro Area") +
+  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
+  mapTheme()
+
+ggplot() +
+  geom_sf(data = neighborhoods.sf, fill = "grey70") +
+  geom_sf(data = sales_abridged.sf, aes(colour = q5(price)), 
+          show.legend = "point", size = .75) +
+  scale_colour_manual(values = palette5,
+                   labels=qBr(sales_abridged.sf,"price"),
+                   name="Quintile\nBreaks") +
+  geom_sf(data = parks.sf, color="darkgreen") +
+  labs(title="Park Locations vs Home Price", subtitle="Charlotte Metro Area") +
+  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
+  mapTheme()
+
+ggplot() +
+  geom_sf(data = sales_abridged.sf, aes(colour = q5(price)), 
+          show.legend = "point", size = .75) +
+  scale_colour_manual(values = palette5,
+                   labels=qBr(sales_abridged.sf,"price"),
+                   name="Quintile\nBreaks") +
+  geom_sf(data = neighborhoods.sf, color="navy", alpha=0.15) +
+  labs(title="Neighborhoods vs Home Price", subtitle="Charlotte Metro Area") +
+  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
+  mapTheme()
+```
+
+
+
+
+
+
+```{r}
+#Re-running correlation table
+numericVars <- 
+  select_if(st_drop_geometry(sales_external_data.sf), is.numeric) %>% na.omit()
+
+
+# yet another way to plot the correlation plot using the corrr library
+numericVars %>% 
+  correlate() %>% 
+  autoplot() +
+  geom_text(aes(label = round(r,digits=2)),size = 2)
+```
+
+```{r}
+reg1 <- lm(price ~ ., data = st_drop_geometry(sales_external_data.sf) %>% 
+                                 dplyr::select(price, park_nn, grocery_nn, fullbaths, heatedarea, npa, Quality, Age, bedrooms, numfirepla, halfbaths, HH_inc, college_perc))
+
+summary(reg1)
+```
+
+-------------- data from lab instructions below here --------------
+
+```{r}
+#Re-engineering data as categorical: number of floors
+sales_external_data.sf <- 
+  sales_external_data.sf %>%
+  mutate(NUM_FLOORS.cat = ifelse(storyheigh == "1 STORY" | storyheigh == "1.5 STORY" | storyheigh == "SPLIT LEVEL" | storyheigh == "2.0 STORY", "Up to 2 Floors",
+               ifelse(storyheigh == "2.5 STORY" | storyheigh == "3.0 STORY", "Up to 3 Floors", "4+ Floors")))
+```
+
+### Tally of Full & Half Baths
+```{r}
+fullbth <- sales_external_data.sf %>% 
+  group_by(fullbaths) %>% 
+  tally()
+
+halfbth<- sales_external_data.sf %>% 
+  group_by(halfbaths) %>% 
+  tally() 
+```
+
+
+```{r}
+#Re-engineer bedroom as categorical
+sales_external_data.sf <- 
+  sales_external_data.sf %>%
+  mutate(NUM_BEDS.cat = ifelse(bedrooms <= 2, "Up to 2 Bedrooms",
+                               ifelse(bedrooms == 3 | bedrooms == 4, "Up to 4 Bedrooms", "5+ Bedrooms")))
+#Re-engineer bathroom data as categorical
+sales_external_data.sf <- 
+  sales_external_data.sf %>%
+  mutate(NUM_BATHS.cat = ifelse(fullbaths <= 2, "Up to 2 Bathroomss",
+                               ifelse(fullbaths == 3 | fullbaths == 4, "Up to 4 Bathrooms", "5+ Bathrooms")))
+```
+
+
+```{r}
+#Re-running multivariate correlation
+reg1 <- lm(price ~ ., data = st_drop_geometry(sales_external_data.sf) %>% 
+                                 dplyr::select(price, park_nn, grocery_nn, NUM_BATHS.cat, heatedarea, npa, Quality, Age, NUM_BEDS.cat, numfirepla, HH_inc, college_perc, NUM_FLOORS.cat))
+
+summary(reg1)
+```
+
+```{r}
+#Creating training data
+inTrain <- createDataPartition(
+              y = paste(sales_external_data.sf$NUM_FLOORS.cat, sales_external_data.sf$NUM_BEDS.cat), 
+              p = .60, list = FALSE)
+charlotte.training <- sales_external_data.sf[inTrain,] 
+charlotte.test <- sales_external_data.sf[-inTrain,]  
+
+reg.training <- lm(price ~ ., data = st_drop_geometry(charlotte.training) %>% 
+                                    dplyr::select(price, heatedarea, 
+                                               Quality, NUM_FLOORS.cat,
+                                               NUM_BEDS.cat, NUM_BATHS.cat, 
+                                               park_nn, grocery_nn, npa,
+                                               Age, HH_inc, college_perc))
+```
+
+```{r}
+#Creating predictions and calculating Mean Absolute Error (MAE) and Mean Absolute Percent Error (MAPE)
+charlotte.test <-
+  charlotte.test %>%
+  mutate(price.Predict = predict(reg.training, charlotte.test),
+         price.Error = price.Predict - price,
+         price.AbsError = abs(price.Predict - price),
+         price.APE = (abs(price.Predict - price)) / price.Predict)%>%
+  filter(price < 5000000)
+
+mean(charlotte.test$price.AbsError, na.rm = T)
+mean(charlotte.test$price.APE, na.rm = T)
+```
+
+```{r}
+#Visualizing prediction errors
+charlotte.APE <- charlotte.test[c(6,35,42:45)]
+
+charlotte_APE.sf <- 
+  charlotte.APE %>%
+  filter(price.APE > 0) %>%
+  st_as_sf(sf_column_name=geometry) %>%
+  st_transform('ESRI:103500')
+
+ggplot() +
+  geom_sf(data = neighborhoods.sf, fill = "grey40") +
+  geom_sf(data = charlotte_APE.sf, aes(color = price.APE), size = .25) +
+  labs(title="Predicted Sales Price\nAbsolute Percent Error") +
+  binned_scale(aesthetics = "color",
+               scale_name = "stepsn", 
+               palette = function(x) c("#1a9641", "#a6d96a", "#ffffbf", "#fdae61", "#d7191c"),
+               breaks = c(0.10, 0.20, 0.5, 0.75),
+               limits = c(0, 50),
+               show.limits = TRUE, 
+               guide = "colorsteps"
+  ) +
+  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
+  mapTheme()
+#Predicted vs observed sales price
+ggplot(
+  charlotte_APE.sf, aes(price, price.Predict, col = price.APE)) +
+  binned_scale(aesthetics = "color",
+               scale_name = "stepsn", 
+               palette = function(x) c("#1a9641", "#a6d96a", "#ffffbf", "#fdae61", "#d7191c"),
+               breaks = c(0.10, 0.20, 0.5, 0.75),
+               limits = c(0, 50),
+               show.limits = TRUE, 
+               guide = "colorsteps"
+  ) +
+    geom_point(size=1) +
+  scale_y_continuous(limits = c(0, 4000000)) +
+  scale_x_continuous(limits = c(0, 4000000)) +
+  labs(title="Sales Price vs. Predicted", subtitle="Charlotte Metro Area") +
+  ylab("Predicted Sales Price (in dollars)") +
+  xlab("Observed Sales Price (in dollars)") +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "black", size = 0.5) +
+  labs(color = "Absolute % Error") +
+  geom_label(
+    label="0% error line", 
+    x=3500000,
+    y=3000000,
+    label.padding = unit(0.25, "lines"), # Rectangle size around label
+    label.size = 0.15,
+    color = "black",
+    fill="grey80")
+```
+
+```{r}
+#Cross-validation
+fitControl <- trainControl(method = "cv", number = 100)
+set.seed(825)
+
+reg.cv <- 
+  train(price ~ ., data = st_drop_geometry(sales_external_data.sf) %>% 
+                                dplyr::select(price, heatedarea, 
+                                               Quality, NUM_FLOORS.cat,
+                                               NUM_BEDS.cat, NUM_BATHS.cat, 
+                                               park_nn, grocery_nn, npa,
+                                               Age, HH_inc, college_perc), 
+     method = "lm", trControl = fitControl, na.action = na.pass)
+
+reg.cv
+```
+
+```{r}
+#Mapping absolute sales price error
+```
+
+```{r}
+#Calculating Moran's I
+coords.test <-  st_coordinates(charlotte.test) 
+
+neighborList.test <- knn2nb(knearneigh(coords.test, 5))
+
+spatialWeights.test <- nb2listw(neighborList.test, style="W")
+ 
+charlotte.test %>% 
+  mutate(lagPriceError = lag.listw(spatialWeights.test, price.Error, NAOK = TRUE)) %>%
+  ggplot(aes(lagPriceError, price.Error))
+
+moranTest <- moran.mc(charlotte.test$price.Error, 
+                      spatialWeights.test, nsim = 999, na.action=na.exclude)
+
+ggplot(as.data.frame(moranTest$res[c(1:999)]), aes(moranTest$res[c(1:999)])) +
+  geom_histogram(binwidth = 0.01) +
+  geom_vline(aes(xintercept = moranTest$statistic), colour = "#FA7800",size=1) +
+  scale_x_continuous(limits = c(-1, 1)) +
+  labs(title="Observed and permuted Moran's I",
+       subtitle= "Observed Moran's I in orange",
+       x="Moran's I",
+       y="Count") +
+  plotTheme()
+```
+
+```{r}
+#Adjusting for neighborhod
+left_join(
+  st_drop_geometry(charlotte.test) %>%
+    group_by(npa) %>%
+    summarize(meanPrice = mean(price, na.rm = T)),
+  mutate(charlotte.test, predict.fe = 
+                        predict(lm(price ~ npa, data = charlotte.test), 
+                        charlotte.test)) %>%
+    st_drop_geometry %>%
+    group_by(npa) %>%
+      summarize(meanPrediction = mean(predict.fe))) %>%
+      kable() %>% kable_styling()
+
+reg.nhood <- lm(price ~ ., data = as.data.frame(charlotte.training) %>% 
+                                 dplyr::select(price, heatedarea, 
+                                               Quality, NUM_FLOORS.cat,
+                                               NUM_BEDS.cat, NUM_BATHS.cat, 
+                                               park_nn, grocery_nn, npa,
+                                               Age, HH_inc, college_perc))
+
+charlotte.test.nhood <-
+  charlotte.test %>%
+  mutate(Regression = "Neighborhood Effects",
+         price.Predict = predict(reg.nhood, charlotte.test),
+         price.Error = price.Predict- price,
+         price.AbsError = abs(price.Predict- price),
+         price.APE = (abs(price.Predict- price)) / price)%>%
+  filter(price < 5000000)
+
+charlotte.test <-charlotte.test %>%
+  mutate(Regression = "Baseline")
+```
+
+```{r}
+bothRegressions <- 
+  rbind(
+    dplyr::select(charlotte.test, starts_with("price"), Regression, npa) %>%
+      mutate(lagPriceError = lag.listw(spatialWeights.test, price.Error, NAOK=TRUE)),
+    dplyr::select(charlotte.test.nhood, starts_with("price"), Regression, npa) %>%
+      mutate(lagPriceError = lag.listw(spatialWeights.test, price.Error, NAOK=TRUE)))    
+```
+
+```{r}
+#Neighborhood effect results
+bothRegressions %>%
+  dplyr::select(price.Predict, price, Regression) %>%
+    ggplot(aes(price, price.Predict)) +
+  geom_point() +
+  stat_smooth(aes(price, price), 
+             method = "lm", se = FALSE, size = 1, colour="#FA7800") + 
+  stat_smooth(aes(price.Predict, price), 
+              method = "lm", se = FALSE, size = 1, colour="#25CB10") +
+  facet_wrap(~Regression) +
+  labs(title="Predicted sale price as a function of observed price",
+       subtitle="Orange line represents a perfect prediction; Green line represents prediction") +
+  plotTheme()
+```
+
+```{r}
+#Mapping MAPE by neighborhood
+ggplot() +
+  geom_sf(data = neighborhoods.sf, fill="grey40") +
+  geom_sf(data = bothRegressions, aes(colour = price.APE), 
+          show.legend = "point", size = .75) +
+  binned_scale(aesthetics = "color",
+               scale_name = "stepsn", 
+               palette = function(x) c("#1a9641", "#a6d96a", "#ffffbf", "#fdae61", "#d7191c"),
+               breaks = c(0.10, 0.20, 0.5, 0.75),
+               limits = c(0, 50),
+               show.limits = TRUE, 
+               guide = "colorsteps"
+  ) +
+  labs(title="Neighborhoods vs Home Price", subtitle="Charlotte Metro Area") +
+  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
+  labs(color = "Absolute % Error") +
+  facet_wrap(~Regression) +
+  mapTheme()
+```
+
+```{r}
+#Scatter plot of MAPE by neighborhood mean price
+npa.mean.sf <- left_join(
+  st_drop_geometry(charlotte.test) %>%
+    group_by(npa) %>%
+    summarize(meanPrice = mean(price, na.rm = T)),
+  mutate(charlotte.test, predict.fe = 
+                        predict(lm(price ~ npa, data = charlotte.test), 
+                        charlotte.test)) %>%
+    st_drop_geometry %>%
+    group_by(npa) %>%
+      summarize(meanAPE = mean(price.APE)))
+
+ggplot(npa.mean.sf, aes(x=meanPrice, y=meanAPE)) +
+  geom_point(alpha=0.5) +
+  scale_y_continuous(limits = c(0, 2)) +
+  scale_x_continuous(limits = c(0, 2500000)) +
+  labs(title="Sales Price vs. Prediction Error", subtitle="Charlotte Area Home Sales") +
+  ylab("Mean Absolute % Error") +
+  xlab("Observed Sales Price")
+```
+
