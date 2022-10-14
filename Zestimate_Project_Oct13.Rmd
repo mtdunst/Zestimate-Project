@@ -55,26 +55,10 @@ Welcome! **The purpose of this project is to produce an algorithm (model) that c
 However, for this project we were **not** allowed to use sales data towards our algorithm. This rule added a level of difficulty because sales data is a strong predictor towards home valuation (e.g. the sales' price of your neighbor's home is likely very similar to the sales price of your home). We were able to make up for this by emphasizing other variables such as # of floors, bedrooms, bathrooms, the quality of nearby schools, as well as a home's proximity to nearby grocery stores. Overall, our model is sufficient and can be strengthened with a few modifications. For instance, **[XXXXXX]**
 
 # Data
-To gather data, our team focused on Mecklenberg County, NC (Charlotte Metro Area) and sourced information from the county's open data website, as well as the American Community Survey and U.S.Census. 
+To gather data, our team focused on Mecklenberg County, NC (Charlotte Metro Area) and sourced information from the county's open data website, as well as the American Community Survey and U.S.Census.
 
-## Summary Statistics 
-```{r summary stats}
-
-```
-
-**Briefly describe your methods for gathering the data**
-**Present a table of summary statistics with variable descriptions. Sort these variables by their category (internal characteristics, amenities/public services or spatial structure). Check out the `stargazer` package for this.**
-**Present a correlation matrix**
-**Present 4 home price correlation scatterplots that you think are of interest. I’m going to look for interesting open data that you’ve integrated with the home sale observations.**
-**Develop 1 map of your dependent variable (sale price)**
-**Develop 3 maps of 3 of your most interesting independent variables.**
-**Include any other maps/graphs/charts you think might be of interest.** 
-
-# Methods
-# Results
-# Conclusion
-## Gathering
-
+## Charlotte Home Sales Data
+To begin, we will import a home sales dataset that includes location, housing characteristics, and home quality for the Charlotte Metro Area. After, we will 'clean' our data by re-categorizing certain variables such as the # of bedrooms, bathrooms, and floors a home has. 
 ```{r}
 #Import sales data, remove columns we won't need, set CRS for North Carolina
 CLT_sales <- 
@@ -94,6 +78,50 @@ sales_abridged.sf <-
   filter(units < 205)
 ```
 
+## Adding Amenities & Demographic Data
+To build a strong algorithm (model), it's important to include variables that relate to the housing market such as educational attainment and local schools, grocery stores, and parks. 
+```{r}
+# Adding demographic data
+CLT_demo.sf <- 
+  get_acs(geography = "tract", 
+          variables = c("B19013_001E", "B15003_022E","B15003_001E"), 
+          year=2020, state=37, county=119, 
+          geometry=TRUE, output="wide") %>%
+  st_transform('ESRI:103500') %>%
+  dplyr::select( -NAME, -B19013_001M, -B15003_022M, -B15003_001M)
+
+#
+CLT_demo.sf <-
+  CLT_demo.sf %>%
+  rename(HH_inc = B19013_001E, 
+         College = B15003_022E,
+         College_age_pop = B15003_001E) %>%
+  mutate(college_perc = College/College_age_pop) %>%
+  dplyr::select( -College, -College_age_pop)
+#Join demo info to sales
+sales_external_data.sf <- st_join(sales_external_data.sf, CLT_demo.sf)
+#sales_external_data.sf <- na.omit(sales_external_data.sf) 
+```
+
+## Summary Statistics 
+```{r summary stats}
+
+```
+
+**Briefly describe your methods for gathering the data**
+**Present a table of summary statistics with variable descriptions. Sort these variables by their category (internal characteristics, amenities/public services or spatial structure). Check out the `stargazer` package for this.**
+**Present a correlation matrix**
+**Present 4 home price correlation scatterplots that you think are of interest. I’m going to look for interesting open data that you’ve integrated with the home sale observations.**
+**Develop 1 map of your dependent variable (sale price)**
+**Develop 3 maps of 3 of your most interesting independent variables.**
+**Include any other maps/graphs/charts you think might be of interest.** 
+
+# Methods
+# Results
+# Conclusion
+## Gathering
+
+###FIX THIS CORRELATION MATRIX AFTER ALL VARIABLES HAVE BEEN ADDED
 ```{r}
 #Correlation Matrix
 numericVars <- 
@@ -107,7 +135,7 @@ numericVars %>%
   geom_text(aes(label = round(r,digits=2)),size = 2)
 
 ```
-
+### SCATTERPLOT 1 
 ```{r}
 ggscatter(sales_abridged.sf,
           x = "heatedarea",
@@ -115,9 +143,9 @@ ggscatter(sales_abridged.sf,
           add = "reg.line") +
   stat_cor(label.y = 50000000) 
 ```
-
+### SALES PRICE MAP
 ```{r}
-#Mapping Home Sales Price and importing "neighborhoods" as a background
+#Mapping home sales price and importing "neighborhoods" as a background
 neighborhoods <- 
   st_read("https://github.com/mtdunst/Zestimate-Project/raw/main/School_districts.geojson") %>%
   st_transform('ESRI:103500')
@@ -139,6 +167,7 @@ ggplot() +
   mapTheme()
 ```
 
+### MAP 1: NEIGHBORHOODS MAP (PERHAPS NOT NEEDED)
 ```{r}
 install.packages('ggsn')
 library(ggsn)
@@ -152,6 +181,7 @@ ggplot() +
 
 ```
 
+### MAP 2: PARKS MAP (PERHAPS NOT NEEDED)
 ```{r}
 parks <- 
   st_read("https://github.com/mtdunst/Zestimate-Project/raw/main/Parks.geojson") %>%
@@ -170,6 +200,7 @@ ggplot() +
   mapTheme()
 ```
 
+### MAP 3: SCHOOLS MAP (PERHAPS NOT NEEDED)
 ```{r}
 schools <- 
   st_read("https://github.com/mtdunst/Zestimate-Project/raw/main/Schools.geojson") %>%
@@ -188,7 +219,7 @@ ggplot() +
   labs(title="School Quality, Charlotte Metro Area") +
   mapTheme()
 ```
-### Grocery Stores
+### MAP 4: GROCERY STORES MAPS (PERHAPS NOT NEEDED)
 ```{r}
 grocery <- 
   st_read("Grocery_pts.geojson") %>%
@@ -206,6 +237,9 @@ ggplot() +
   scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
   mapTheme()
 ```
+
+
+### SPATIAL JOIN NEIGHBORHOOD + SCHOOL DISTRICT 
 ```{r}
 #Spatial join neighborhood
 sales_neighborhoods.sf <- st_join(sales_abridged.sf, neighborhoods.sf)
@@ -214,7 +248,10 @@ sales_neighborhoods.sf <- sales_neighborhoods.sf[-c(33,35,36)]
 #Spatial join school district
 sales_schools.sf <- st_join(sales_neighborhoods.sf, schools.sf)
 sales_schools.sf <- sales_schools.sf[-c(34:40)]
+```
 
+## NEAREST NEIGHBOR PARK + GROCERY STORE 
+```{r}
 #Nearest neighbor to parks and grocery stores
 sales_external_data.sf <-
   sales_schools.sf %>% 
@@ -227,6 +264,7 @@ sales_external_data.sf <-
 
 ```
 
+## DEMOGRAPHICS (MOVE TO TOP)
 ```{r}
 #Get basic demographic information
 CLT_demo.sf <- 
@@ -244,18 +282,13 @@ CLT_demo.sf <-
          College_age_pop = B15003_001E) %>%
   mutate(college_perc = College/College_age_pop) %>%
   dplyr::select( -College, -College_age_pop)
-```
-
-```{r}
 #Join demo info to sales
 sales_external_data.sf <- st_join(sales_external_data.sf, CLT_demo.sf)
 #sales_external_data.sf <- na.omit(sales_external_data.sf) 
 ```
 
+### SCATTERPLOT 2: SCHOOL QUALITY 
 ```{r}
-
-
-
 #Scatterplot home price vs. features
 ggplot(sales_external_data.sf, aes(x=Quality, y=price)) +
   geom_point(alpha=0.15) +
@@ -276,7 +309,10 @@ ggplot(sales_external_data.sf, aes(x=heatedarea, y=price)) +
   labs(title="Floor Area vs Home Price", subtitle="Charlotte Metro Area") +
   ylab("Home Price (in dollars)") +
   xlab("SF of Heated Floor")
+```
 
+### SCATTERPLOT 3: EDU. ATTAINMENT 
+```{r}
 ggplot(sales_external_data.sf, aes(x=college_perc, y=price)) +
   geom_point(alpha=0.15) +
   geom_smooth(method=lm, linetype="dashed") +
@@ -289,7 +325,7 @@ ggplot(sales_external_data.sf, aes(x=college_perc, y=price)) +
   xlab("Percent of Residents with College Degree")
 
 ```
-
+### MAP 5: GROCERY STORE VS HOME PRICE
 ```{r}
 #Mapping external data
 ggplot() +
@@ -303,7 +339,10 @@ ggplot() +
   labs(title="Grocery Store Locations vs Home Price", subtitle="Charlotte Metro Area") +
   scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
   mapTheme()
+```
 
+### MAP 6: PARK LOCATIONS VS HOME PRICE
+```{r}
 ggplot() +
   geom_sf(data = neighborhoods.sf, fill = "grey70") +
   geom_sf(data = sales_abridged.sf, aes(colour = q5(price)), 
@@ -315,7 +354,10 @@ ggplot() +
   labs(title="Park Locations vs Home Price", subtitle="Charlotte Metro Area") +
   scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
   mapTheme()
+```
 
+### MAP 7: NEIGHBORHOODS VS HOME PRICE 
+```{r}
 ggplot() +
   geom_sf(data = sales_abridged.sf, aes(colour = q5(price)), 
           show.legend = "point", size = .75) +
@@ -328,11 +370,7 @@ ggplot() +
   mapTheme()
 ```
 
-
-
-
-
-
+## CORRELATION MATRIX (ALL VARS; MOVE TO TOP)
 ```{r}
 #Re-running correlation table
 numericVars <- 
@@ -346,6 +384,7 @@ numericVars %>%
   geom_text(aes(label = round(r,digits=2)),size = 2)
 ```
 
+## REGRESSION USING STAND OUT + IMPORTANT VARS
 ```{r}
 #Regression using variables that stood out in correlation table plus variables that we qualitatively think are important.
 reg1 <- lm(price ~ ., data = st_drop_geometry(sales_external_data.sf) %>% 
@@ -354,8 +393,9 @@ reg1 <- lm(price ~ ., data = st_drop_geometry(sales_external_data.sf) %>%
 summary(reg1)
 ```
 
--------------- data from lab instructions below here --------------
+**-------------- data from lab instructions below here --------------**
 
+### CATEGORY VARS: FLOORS 
 ```{r}
 #Re-engineering data as categorical: number of floors
 sales_external_data.sf <- 
@@ -364,24 +404,18 @@ sales_external_data.sf <-
                ifelse(storyheigh == "2.5 STORY" | storyheigh == "3.0 STORY", "Up to 3 Floors", "4+ Floors")))
 ```
 
-### Tally of Full & Half Baths
-```{r}
-fullbth <- sales_external_data.sf %>% 
-  group_by(fullbaths) %>% 
-  tally()
 
-halfbth<- sales_external_data.sf %>% 
-  group_by(halfbaths) %>% 
-  tally() 
-```
-
-
+### CATEGORY VARS: BEDS
 ```{r}
 #Re-engineer bedroom as categorical
 sales_external_data.sf <- 
   sales_external_data.sf %>%
   mutate(NUM_BEDS.cat = ifelse(bedrooms <= 2, "Up to 2 Bedrooms",
                                ifelse(bedrooms == 3 | bedrooms == 4, "Up to 4 Bedrooms", "5+ Bedrooms")))
+```
+
+### CATEGORY VARS: BATHS
+```{r}
 #Re-engineer bathroom data as categorical
 sales_external_data.sf <- 
   sales_external_data.sf %>%
@@ -391,7 +425,7 @@ sales_external_data.sf <-
 #sales_external_data.sf <- na.omit(sales_external_data.sf)
 ```
 
-
+### MULTIVARIATE CORRELATION
 ```{r}
 #Re-running multivariate correlation
 reg1 <- lm(price ~ ., data = st_drop_geometry(sales_external_data.sf) %>% 
