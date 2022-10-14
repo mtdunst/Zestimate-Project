@@ -11,7 +11,7 @@ html_document:
   code_folding: hide 
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, install= TRUE, cache=TRUE}
 knitr::opts_chunk$set(echo = TRUE)
 # Load some libraries
 rm(list = ls())
@@ -52,19 +52,27 @@ Welcome! **The purpose of this project is to produce an algorithm (model) that c
 2. Provides context for anticipated property taxes and homeowner's insurance
 3. Alleviates historic and systemic biases commonplace with home valuations in neighborhoods of color
 
-However, for this project we were **not** allowed to use sales data towards our algorithm. This rule added a level of difficulty because sales data is a strong predictor towards home valuation (e.g. the sales' price of your neighbor's home is likely very similar to the sales price of your home). We were able to make up for this by emphasizing other variables such as # of floors, bedrooms, bathrooms, the quality of nearby schools, as well as a home's proximity to nearby grocery stores. Overall, our model is **[XXXXXX]**
+However, for this project we were **not** allowed to use sales data towards our algorithm. This rule added a level of difficulty because sales data is a strong predictor towards home valuation (e.g. the sales' price of your neighbor's home is likely very similar to the sales price of your home). We were able to make up for this by emphasizing other variables such as # of floors, bedrooms, bathrooms, the quality of nearby schools, as well as a home's proximity to nearby grocery stores. Overall, our model is sufficient and can be strengthened with a few modifications. For instance, **[XXXXXX]**
 
-# Data:
+# Data
 To gather data, our team focused on Mecklenberg County, NC (Charlotte Metro Area) and sourced information from the county's open data website, as well as the American Community Survey and U.S.Census. 
 
-Briefly describe your methods for gathering the data.
-Present a table of summary statistics with variable descriptions. Sort these variables by their category (internal characteristics, amenities/public services or spatial structure). Check out the `stargazer` package for this.
-Present a correlation matrix
-Present 4 home price correlation scatterplots that you think are of interest. I’m going to look for interesting open data that you’ve integrated with the home sale observations.
-Develop 1 map of your dependent variable (sale price)
-Develop 3 maps of 3 of your most interesting independent variables.
-Include any other maps/graphs/charts you think might be of interest.
- 
+## Summary Statistics 
+```{r summary stats}
+
+```
+
+**Briefly describe your methods for gathering the data**
+**Present a table of summary statistics with variable descriptions. Sort these variables by their category (internal characteristics, amenities/public services or spatial structure). Check out the `stargazer` package for this.**
+**Present a correlation matrix**
+**Present 4 home price correlation scatterplots that you think are of interest. I’m going to look for interesting open data that you’ve integrated with the home sale observations.**
+**Develop 1 map of your dependent variable (sale price)**
+**Develop 3 maps of 3 of your most interesting independent variables.**
+**Include any other maps/graphs/charts you think might be of interest.** 
+
+# Methods
+# Results
+# Conclusion
 ## Gathering
 
 ```{r}
