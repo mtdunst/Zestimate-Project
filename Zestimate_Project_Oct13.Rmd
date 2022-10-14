@@ -80,7 +80,7 @@ sales_abridged.sf <-
 
 ## Adding Amenities & Demographic Data
 To build a strong algorithm (model), it's important to include variables that relate to the housing market such as educational attainment and local schools, grocery stores, and parks. 
-```{r}
+```{r tigris_use_cache= TRUE}
 # Adding demographic data
 CLT_demo.sf <- 
   get_acs(geography = "tract", 
