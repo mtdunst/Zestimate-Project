@@ -58,39 +58,58 @@ However, for this project we were **not** allowed to use sales data towards our 
 To gather data, our team focused on Mecklenberg County, NC (Charlotte Metro Area) and sourced information from the county's open data website, as well as the American Community Survey and U.S.Census.
 
 ## Charlotte Home Sales Data
-To begin, we will import a home sales dataset that includes location, housing characteristics, and home quality for the Charlotte Metro Area. After, we will 'clean' our data by re-categorizing certain variables such as the # of bedrooms, bathrooms, and floors a home has. 
+To begin, we will import a home sales dataset that includes variables like location, housing characteristics, and home quality for the Charlotte Metro Area. After, we will 'clean' our data by re-categorizing certain variables such as the # of bedrooms, bathrooms, and floors a home has. Moving forward, we'll refer to this home sales data as **"internal variables."** 
 ```{r}
 #Import sales data, remove columns we won't need, set CRS for North Carolina
-CLT_sales <- 
+CLT_internal <- 
   st_read("https://github.com/mafichman/MUSA_508_Lab/raw/main/Midterm/data/2022/studentData.geojson") %>%
   st_transform('ESRI:103500')
 
-sales_abridged <- CLT_sales[c(5,9,20,21,26,28,30:46,57:60,67,68,70,71,72)]
+CLT_internal <- CLT_internal[c(5,9,20,21,26,28,30:46,57:60,67,68,70,71,72)]
 
-sales_abridged.sf <- 
-  sales_abridged %>% 
+CLT_internal.sf <- 
+  CLT_internal %>% 
   st_as_sf(sf_column_name=geometry) %>%
   st_transform('ESRI:103500') %>%
   mutate(Age = 2022 - yearbuilt)
 
-sales_abridged.sf <-
-  sales_abridged.sf %>%
+CLT_internal.sf <-
+  CLT_internal.sf %>%
   filter(units < 205)
 ```
 
-## Adding Amenities & Demographic Data
-To build a strong algorithm (model), it's important to include variables that relate to the housing market such as educational attainment and local schools, grocery stores, and parks. 
+## Adding Amenities Data
+To build a strong algorithm (model), it's important to include variables that relate to the housing market such as local schools, grocery stores, and parks. We'll refer to these variables as **"amenities."**
 ```{r tigris_use_cache= TRUE}
+# Adding school data 
+CLT_schools <- 
+  st_read("https://github.com/mtdunst/Zestimate-Project/raw/main/Schools.geojson") %>%
+  st_transform(st_crs(CLT_internal))
+
+# Adding grocery store data
+CLT_grocery <- 
+  st_read("Grocery_pts.geojson") %>%
+  st_transform(st_crs(CLT_internal))
+
+# Adding parks data 
+CLT_parks <- 
+  st_read("https://github.com/mtdunst/Zestimate-Project/raw/main/Parks.geojson") %>%
+  st_transform(st_crs(CLT_internal))
+
+```
+
+## Adding Spatial Structure Data 
+Finally, we will add variables that provide demographic and environmental data for the Charlotte Metro Area. Specifically, we will include educational attainment and neighborhoods data. We'll refer to these variables as **"spatial structure."**
+```{r}
 # Adding demographic data
 CLT_demo.sf <- 
   get_acs(geography = "tract", 
           variables = c("B19013_001E", "B15003_022E","B15003_001E"), 
           year=2020, state=37, county=119, 
           geometry=TRUE, output="wide") %>%
-  st_transform('ESRI:103500') %>%
+  st_transform(st_crs(CLT_internal)) %>%
   dplyr::select( -NAME, -B19013_001M, -B15003_022M, -B15003_001M)
 
-#
 CLT_demo.sf <-
   CLT_demo.sf %>%
   rename(HH_inc = B19013_001E, 
@@ -98,10 +117,40 @@ CLT_demo.sf <-
          College_age_pop = B15003_001E) %>%
   mutate(college_perc = College/College_age_pop) %>%
   dplyr::select( -College, -College_age_pop)
-#Join demo info to sales
-sales_external_data.sf <- st_join(sales_external_data.sf, CLT_demo.sf)
-#sales_external_data.sf <- na.omit(sales_external_data.sf) 
+
+# Adding neighborhood data 
+CLT_neighborhoods <- 
+  st_read("https://github.com/mtdunst/Zestimate-Project/raw/main/School_districts.geojson") %>%
+  st_transform(st_crs(CLT_internal))
 ```
+
+## Orienting Our Variables 
+So far, we have added *internal*, *amenities*, and *spatial structure* variables. However, in order to build our model and analyze how these variables relate to home sales, we must modify them. We'll achieve this using 2 techniques:
+
+**1. K-nearest neighbor (KNN):** this will find the distance between a given home and the most near amenities (school, grocery store, park).
+**2. Spatial join (SJ):** this will join our spatial structure data (educational attainment, neighborhoods) to our internal varies (Charlotte homes sales)
+
+```{r}
+# Most near school ERROR 
+CLT_internal <-
+  CLT_internal %>% 
+    mutate(
+      school_nn1 = nn_function(st_coordinates(CLT_internal), st_coordinates(CLT_schools),k = 1))
+
+# Most near grocery store
+CLT_internal <-
+  CLT_internal %>% 
+    mutate(
+      grocery_nn1 = nn_function(st_coordinates(CLT_internal), st_coordinates(CLT_grocery), k = 1))
+
+# Most near park
+CLT_internal <-
+  CLT_internal %>% 
+    mutate(
+      park_nn1 = nn_function(st_coordinates(CLT_internal), st_coordinates(CLT_parks), k = 1))
+
+```
+
 
 ## Summary Statistics 
 ```{r summary stats}
@@ -146,10 +195,8 @@ ggscatter(sales_abridged.sf,
 ### SALES PRICE MAP
 ```{r}
 #Mapping home sales price and importing "neighborhoods" as a background
-neighborhoods <- 
-  st_read("https://github.com/mtdunst/Zestimate-Project/raw/main/School_districts.geojson") %>%
-  st_transform('ESRI:103500')
 
+# PROBABLY NOT NEEDED DELETE 
 neighborhoods.sf <- 
   neighborhoods %>% 
   st_as_sf(sf_column_name=geometry) %>%
@@ -183,9 +230,7 @@ ggplot() +
 
 ### MAP 2: PARKS MAP (PERHAPS NOT NEEDED)
 ```{r}
-parks <- 
-  st_read("https://github.com/mtdunst/Zestimate-Project/raw/main/Parks.geojson") %>%
-  st_transform('ESRI:103500')
+
 
 parks.sf <- 
   parks %>% 
@@ -202,15 +247,12 @@ ggplot() +
 
 ### MAP 3: SCHOOLS MAP (PERHAPS NOT NEEDED)
 ```{r}
-schools <- 
-  st_read("https://github.com/mtdunst/Zestimate-Project/raw/main/Schools.geojson") %>%
-  st_transform('ESRI:103500')
 
-schools.sf <- 
-  schools %>% 
+#PROBABLY NOT NEEDED (DELETE)
+CLT_schools.sf <- 
+  CLT_schools %>% 
   st_as_sf(sf_column_name=geometry) %>%
   st_transform('ESRI:103500')
-
 ggplot() +
   geom_sf(data = schools.sf, aes(fill=factor(Quality), color=factor(Quality))) +
   scale_fill_brewer(palette="RdYlGn") +
@@ -221,9 +263,6 @@ ggplot() +
 ```
 ### MAP 4: GROCERY STORES MAPS (PERHAPS NOT NEEDED)
 ```{r}
-grocery <- 
-  st_read("Grocery_pts.geojson") %>%
-  st_transform('ESRI:103500')
 
 grocery.sf <- 
   grocery %>% 
