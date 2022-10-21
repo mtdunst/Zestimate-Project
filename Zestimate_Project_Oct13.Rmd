@@ -70,7 +70,7 @@ CLT_internal <- CLT_internal[c(5,9,20,21,26,28,30:46,57:60,67,68,70,71,72)] %>%
     age = 2022 - yearbuilt,
     sqft = (totalac * 43560),
      pricesqft = ((totalac * 43560)/price),
-        totbaths = (halfbaths)+(fullbaths))
+        totbaths = (halfbaths*0.5)+(fullbaths))
 
   CLT_internal$quality <- recode(CLT_internal$bldggrade, MINIMUM = 1 , FAIR = 2, AVERAGE = 3, GOOD = 4, VERYGOOD = 5, EXCELLENT = 6, CUSTOM = 7)
 ```
@@ -176,6 +176,7 @@ stargazer(as.data.frame(ss_internal), type="html", digits=1, title = "Descriptiv
 Below is a table visualizing correlation between our variables. We can see the home price maintains a positive correlation with the following variables (in order of strength):
 
 * heated square footed of the home
+* home quality 
 * total bathrooms
 * household income
 * percentage of residents with college degrees 
@@ -185,14 +186,14 @@ Below is a table visualizing correlation between our variables. We can see the h
 We can use this matrix to inform our variable selection for our model.
 ```{r corrmatrix}
 numericVars <- st_drop_geometry(CLT_internal) %>%
-  dplyr::select(price, age, sqft, pricesqft, totbaths, bedrooms, numfirepla, heatedarea, yearbuilt, school_nn1, grocery_nn1, park_nn1, HH_inc, college_perc, FID) %>%
+  dplyr::select(price, age, sqft, quality, pricesqft, totbaths, bedrooms, numfirepla, heatedarea, yearbuilt, school_nn1, grocery_nn1, park_nn1, HH_inc, college_perc, FID) %>%
   select(where(is.numeric)) %>%
   na.omit()
 
 ggcorrplot(
   round(cor(numericVars), 1),
   p.mat = cor_pmat(numericVars),
-  colors = c("lightskyblue", "white", "firebrick1"),
+  colors = c("deepskyblue", "grey100", "firebrick1"),
   type="lower",
   insig = "blank") +  
     labs(title = "Correlation Matrix of Numeric Variables") +
@@ -203,337 +204,112 @@ ggcorrplot(
 Below are 4 home price correlation scatterplots based upon the results of our correlation matrix:
 ```{r scatter}
 st_drop_geometry(CLT_internal) %>% 
-  dplyr::select(price, pricesqft, totalbaths, qualityCode, builtYear, bsmtSF, carStorageSF,nbrBedRoom,
-                nbrRoomsNobath, mainfloorSF, TotalFinishedSF, Ac, Heating, PerBDorHig, PerWhitePo,
-                MedHHInc, ) %>% 
-  filter(price < 10000000) %>%
+  dplyr::select(price, quality, heatedarea, HH_inc, yearbuilt) %>% 
+    filter(price < 10000000) %>%
   gather(Variable, Value, -price) %>% 
    ggplot(aes(Value, price)) +
-     geom_point(size = .5) + geom_smooth(method = "lm", se=F, colour = "#FA7800") +
+     geom_point(size = .5) + geom_smooth(method = "lm", se=F, colour = "hotpink") +
      facet_wrap(~Variable, ncol = 3, scales = "free") +
-     labs(title = "Price as a function of continuous variables", 
-          caption="Figure 4.1") +
-     plotTheme()
+     labs(title = "Price as a function of Internal and Spatial Variables") 
+          + plotTheme()
+```
+## Maps
+Below are 4 maps including:
+1. A map of our dependent variable (price) 
+2. A map of park locations
+3. A map of nearby grocery stores
+4. A map of school quality
+
+*Note: the first 3 maps are in relation to home prices within the Charlotte Metro Area.*
+
+### Map 1: Home Price
+```{r price}
+ggplot() +
+  geom_sf(data = CLT_neighborhoods, fill = "grey40") +
+  geom_sf(data = CLT_internal, aes(colour = q5(price)), 
+          show.legend = "point", size = .75) +
+  scale_colour_manual(values = palette5,
+                   labels=qBr(CLT_internal,"price"),
+                   name="Quintile\nBreaks") +
+  labs(title="Home Price", subtitle="Charlotte Metro Area") +
+  labs(color = "Observed Sales Price (quintiles)") +
+  mapTheme()
 ```
 
-Develop 1 map of your dependent variable (sale price)
-Develop 3 maps of 3 of your most interesting independent variables.
-Include any other maps/graphs/charts you think might be of interest.
+### Map 2: Parks vs Home Price 
+```{r parks}
+ggplot() +
+  geom_sf(data = CLT_neighborhoods, fill = "grey70") +
+  geom_sf(data = CLT_internal, aes(colour = q5(price)), 
+          show.legend = "point", size = .75) +
+  scale_colour_manual(values = palette5,
+                   labels=qBr(CLT_internal,"price"),
+                   name="Quintile\nBreaks") +
+  geom_sf(data = CLT_parks, color="darkgreen") +
+  labs(title="Park Locations vs Home Price", subtitle="Charlotte Metro Area") +
+  mapTheme()
+```
+### Map 3: Grocery Stores vs Home Price
+```{r grocery}
+ggplot() +
+  geom_sf(data = CLT_internal, fill = "grey30") +
+  geom_sf(data = CLT_internal, aes(colour = q5(price)), 
+          show.legend = "point", size = .75) +
+  scale_colour_manual(values = palette5,
+                   labels=qBr(CLT_internal,"price"),
+                   name="Quintile\nBreaks") +
+  geom_sf(data = CLT_grocery, color="deepskyblue") +
+  labs(title="Grocery Store Locations vs Home Price", subtitle="Charlotte Metro Area") +
+  mapTheme()
+```
+### Map 4: School Quality
+```{r schoolqual}
+ggplot() +
+  geom_sf(data = CLT_schools, aes(fill=factor(Quality), color=factor(Quality))) +
+  scale_fill_brewer(palette="RdYlGn") +
+  scale_color_brewer(palette="RdYlGn") +
+  labs(title="School Quality", subtitle="Charlotte Metro Area") +
+  mapTheme()
+```
 
 # Methods
 # Results
 # Conclusion
 ## Gathering
 
-###FIX THIS CORRELATION MATRIX AFTER ALL VARIABLES HAVE BEEN ADDED
-```{r}
-#Correlation Matrix
-numericVars <- 
-  select_if(st_drop_geometry(sales_abridged.sf), is.numeric) %>% na.omit()
+# Time to Train!
+Now that we have identified important variables, we will build out model by dividing the data into training/test sets. 
 
-
-# yet another way to plot the correlation plot using the corrr library
-numericVars %>% 
-  correlate() %>% 
-  autoplot() +
-  geom_text(aes(label = round(r,digits=2)),size = 2)
-
-```
-### SCATTERPLOT 1 
-```{r}
-ggscatter(sales_abridged.sf,
-          x = "heatedarea",
-          y = "price",
-          add = "reg.line") +
-  stat_cor(label.y = 50000000) 
-```
-### SALES PRICE MAP
-```{r}
-#Mapping home sales price and importing "neighborhoods" as a background
-
-# PROBABLY NOT NEEDED DELETE 
-neighborhoods.sf <- 
-  neighborhoods %>% 
-  st_as_sf(sf_column_name=geometry) %>%
-  st_transform('ESRI:103500')
-
-ggplot() +
-  geom_sf(data = neighborhoods.sf, fill = "grey40") +
-  geom_sf(data = sales_abridged.sf, aes(colour = q5(price)), 
-          show.legend = "point", size = .75) +
-  scale_colour_manual(values = palette5,
-                   labels=qBr(sales_abridged.sf,"price"),
-                   name="Quintile\nBreaks") +
-  labs(title="Sales Price, Charlotte Metro Area") +
-  labs(color = "Observed Sales Price (quintiles)") +
-  mapTheme()
-```
-
-### MAP 1: NEIGHBORHOODS MAP (PERHAPS NOT NEEDED)
-```{r}
-install.packages('ggsn')
-library(ggsn)
-
-#Mapping external data sets
-ggplot() +
-  geom_sf(data = neighborhoods.sf, color="navy") +
-  labs(title="Neighborhoods, Charlotte Metro Area") +
-  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
-  mapTheme()
-
-```
-
-### MAP 2: PARKS MAP (PERHAPS NOT NEEDED)
-```{r}
-
-
-parks.sf <- 
-  parks %>% 
-  st_as_sf(sf_column_name=geometry) %>%
-  st_transform('ESRI:103500')
-
-ggplot() +
-  geom_sf(data = neighborhoods.sf, fill = "grey70") +
-  geom_sf(data = parks.sf, color="darkgreen") +
-  labs(title="Park Locations, Charlotte Metro Area") +
-  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
-  mapTheme()
-```
-
-### MAP 3: SCHOOLS MAP (PERHAPS NOT NEEDED)
-```{r}
-
-#PROBABLY NOT NEEDED (DELETE)
-CLT_schools.sf <- 
-  CLT_schools %>% 
-  st_as_sf(sf_column_name=geometry) %>%
-  st_transform('ESRI:103500')
-ggplot() +
-  geom_sf(data = schools.sf, aes(fill=factor(Quality), color=factor(Quality))) +
-  scale_fill_brewer(palette="RdYlGn") +
-  scale_color_brewer(palette="RdYlGn") +
-  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
-  labs(title="School Quality, Charlotte Metro Area") +
-  mapTheme()
-```
-### MAP 4: GROCERY STORES MAPS (PERHAPS NOT NEEDED)
-```{r}
-
-grocery.sf <- 
-  grocery %>% 
-  st_as_sf(sf_column_name=geometry) %>%
-  st_transform('ESRI:103500')
-
-ggplot() +
-  geom_sf(data = neighborhoods.sf, fill = "grey70") +
-  geom_sf(data = grocery.sf, color="deepskyblue") +
-  labs(title="Grocery Store Locations, Charlotte Metro Area") +
-  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
-  mapTheme()
-```
-
-
-### SPATIAL JOIN NEIGHBORHOOD + SCHOOL DISTRICT 
-```{r}
-#Spatial join neighborhood
-sales_neighborhoods.sf <- st_join(sales_abridged.sf, neighborhoods.sf)
-sales_neighborhoods.sf <- sales_neighborhoods.sf[-c(33,35,36)]
-
-#Spatial join school district
-sales_schools.sf <- st_join(sales_neighborhoods.sf, schools.sf)
-sales_schools.sf <- sales_schools.sf[-c(34:40)]
-```
-
-## NEAREST NEIGHBOR PARK + GROCERY STORE 
-```{r}
-#Nearest neighbor to parks and grocery stores
-sales_external_data.sf <-
-  sales_schools.sf %>% 
-    mutate(
-      park_nn = nn_function(st_coordinates(sales_schools.sf), 
-                              st_coordinates(parks.sf), k = 2),
-      
-      grocery_nn = nn_function(st_coordinates(sales_schools.sf),
-                                st_coordinates(grocery.sf), k = 2))
-
-```
-
-## DEMOGRAPHICS (MOVE TO TOP)
-```{r}
-#Get basic demographic information
-CLT_demo.sf <- 
-  get_acs(geography = "tract", 
-          variables = c("B19013_001E", "B15003_022E","B15003_001E"), 
-          year=2020, state=37, county=119, 
-          geometry=TRUE, output="wide") %>%
-  st_transform('ESRI:103500') %>%
-  dplyr::select( -NAME, -B19013_001M, -B15003_022M, -B15003_001M)
-
-CLT_demo.sf <-
-  CLT_demo.sf %>%
-  rename(HH_inc = B19013_001E, 
-         College = B15003_022E,
-         College_age_pop = B15003_001E) %>%
-  mutate(college_perc = College/College_age_pop) %>%
-  dplyr::select( -College, -College_age_pop)
-#Join demo info to sales
-sales_external_data.sf <- st_join(sales_external_data.sf, CLT_demo.sf)
-#sales_external_data.sf <- na.omit(sales_external_data.sf) 
-```
-
-### SCATTERPLOT 2: SCHOOL QUALITY 
-```{r}
-#Scatterplot home price vs. features
-ggplot(sales_external_data.sf, aes(x=Quality, y=price)) +
-  geom_point(alpha=0.15) +
-  geom_smooth(method=lm, linetype="dashed") +
-  scale_y_continuous(limits = c(0, 5000000)) +
-  stat_regline_equation(label.y = 5000000, aes(label = ..eq.label..)) +
-  stat_regline_equation(label.y = 4500000, aes(label = ..rr.label..)) +
-  labs(title="School Quality vs Home Price", subtitle="Charlotte Metro Area") +
-  ylab("Home Price (in dollars)") +
-  xlab("High School District Quality")
-
-ggplot(sales_external_data.sf, aes(x=heatedarea, y=price)) +
-  geom_point(alpha=0.15) +
-  geom_smooth(method=lm, linetype="dashed") +
-  scale_y_continuous(limits = c(0, 5000000)) +
-  stat_regline_equation(label.y = 5000000, aes(label = ..eq.label..)) +
-  stat_regline_equation(label.y = 4500000, aes(label = ..rr.label..)) +
-  labs(title="Floor Area vs Home Price", subtitle="Charlotte Metro Area") +
-  ylab("Home Price (in dollars)") +
-  xlab("SF of Heated Floor")
-```
-
-### SCATTERPLOT 3: EDU. ATTAINMENT 
-```{r}
-ggplot(sales_external_data.sf, aes(x=college_perc, y=price)) +
-  geom_point(alpha=0.15) +
-  geom_smooth(method=lm, linetype="dashed") +
-  scale_y_continuous(limits = c(0, 5000000)) +
-  scale_x_continuous(limits = c(0, 0.75)) +
-  stat_regline_equation(label.y = 5000000, aes(label = ..eq.label..)) +
-  stat_regline_equation(label.y = 4500000, aes(label = ..rr.label..)) +
-  labs(title="Educational Attainment vs Home Price", subtitle="Charlotte Metro Area") +
-  ylab("Home Price (in dollars)") +
-  xlab("Percent of Residents with College Degree")
-
-```
-### MAP 5: GROCERY STORE VS HOME PRICE
-```{r}
-#Mapping external data
-ggplot() +
-  geom_sf(data = neighborhoods.sf, fill = "grey30") +
-  geom_sf(data = sales_abridged.sf, aes(colour = q5(price)), 
-          show.legend = "point", size = .75) +
-  scale_colour_manual(values = palette5,
-                   labels=qBr(sales_abridged.sf,"price"),
-                   name="Quintile\nBreaks") +
-  geom_sf(data = grocery.sf, color="deepskyblue") +
-  labs(title="Grocery Store Locations vs Home Price", subtitle="Charlotte Metro Area") +
-  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
-  mapTheme()
-```
-
-### MAP 6: PARK LOCATIONS VS HOME PRICE
-```{r}
-ggplot() +
-  geom_sf(data = neighborhoods.sf, fill = "grey70") +
-  geom_sf(data = sales_abridged.sf, aes(colour = q5(price)), 
-          show.legend = "point", size = .75) +
-  scale_colour_manual(values = palette5,
-                   labels=qBr(sales_abridged.sf,"price"),
-                   name="Quintile\nBreaks") +
-  geom_sf(data = parks.sf, color="darkgreen") +
-  labs(title="Park Locations vs Home Price", subtitle="Charlotte Metro Area") +
-  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
-  mapTheme()
-```
-
-### MAP 7: NEIGHBORHOODS VS HOME PRICE 
-```{r}
-ggplot() +
-  geom_sf(data = sales_abridged.sf, aes(colour = q5(price)), 
-          show.legend = "point", size = .75) +
-  scale_colour_manual(values = palette5,
-                   labels=qBr(sales_abridged.sf,"price"),
-                   name="Quintile\nBreaks") +
-  geom_sf(data = neighborhoods.sf, color="navy", alpha=0.15) +
-  labs(title="Neighborhoods vs Home Price", subtitle="Charlotte Metro Area") +
-  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
-  mapTheme()
-```
-
-## CORRELATION MATRIX (ALL VARS; MOVE TO TOP)
-```{r}
-#Re-running correlation table
-numericVars <- 
-  select_if(st_drop_geometry(sales_external_data.sf), is.numeric) %>% na.omit()
-
-
-# yet another way to plot the correlation plot using the corrr library
-numericVars %>% 
-  correlate() %>% 
-  autoplot() +
-  geom_text(aes(label = round(r,digits=2)),size = 2)
-```
-
-## REGRESSION USING STAND OUT + IMPORTANT VARS
-```{r}
-#Regression using variables that stood out in correlation table plus variables that we qualitatively think are important.
-reg1 <- lm(price ~ ., data = st_drop_geometry(sales_external_data.sf) %>% 
-                                 dplyr::select(price, park_nn, grocery_nn, fullbaths, heatedarea, Quality, Age, bedrooms, numfirepla, halfbaths, HH_inc, college_perc))
-
-summary(reg1)
-```
-
-**-------------- data from lab instructions below here --------------**
-
-### CATEGORY VARS: FLOORS 
-```{r}
+*Before dividing the dataset we will create categorical variables for the number of floors, bathrooms, and bedrooms for a given home.*
+```{r floors}
 #Re-engineering data as categorical: number of floors
-sales_external_data.sf <- 
-  sales_external_data.sf %>%
+CLT_internal<- 
+  CLT_internal%>%
   mutate(NUM_FLOORS.cat = ifelse(storyheigh == "1 STORY" | storyheigh == "1.5 STORY" | storyheigh == "SPLIT LEVEL" | storyheigh == "2.0 STORY", "Up to 2 Floors",
                ifelse(storyheigh == "2.5 STORY" | storyheigh == "3.0 STORY", "Up to 3 Floors", "4+ Floors")))
 ```
 
-
-### CATEGORY VARS: BEDS
-```{r}
+```{r beds}
 #Re-engineer bedroom as categorical
-sales_external_data.sf <- 
-  sales_external_data.sf %>%
+CLT_internal <- 
+  CLT_internal %>%
   mutate(NUM_BEDS.cat = ifelse(bedrooms <= 2, "Up to 2 Bedrooms",
                                ifelse(bedrooms == 3 | bedrooms == 4, "Up to 4 Bedrooms", "5+ Bedrooms")))
 ```
 
-### CATEGORY VARS: BATHS
-```{r}
+```{r baths}
 #Re-engineer bathroom data as categorical
-sales_external_data.sf <- 
-  sales_external_data.sf %>%
-  mutate(NUM_BATHS.cat = ifelse(fullbaths <= 2, "Up to 2 Bathroomss",
-                               ifelse(fullbaths == 3 | fullbaths == 4, "Up to 4 Bathrooms", "5+ Bathrooms")))
-
-#sales_external_data.sf <- na.omit(sales_external_data.sf)
+CLT_internal <- 
+  CLT_internal %>%
+  mutate(NUM_BATHS.cat = ifelse(totbaths <= 2.5, "Up to 2.5 Bathrooms",
+                               ifelse(totbaths <= 3.5 | totbaths <= 4.5, "Up to 4 Bathrooms", "5+ Bathrooms")))
 ```
 
-### MULTIVARIATE CORRELATION
-```{r}
-#Re-running multivariate correlation
-reg1 <- lm(price ~ ., data = st_drop_geometry(sales_external_data.sf) %>% 
-                                 dplyr::select(price, park_nn, grocery_nn, NUM_BATHS.cat, heatedarea, Quality, Age, NUM_BEDS.cat, numfirepla, HH_inc, college_perc, NUM_FLOORS.cat))
-
-summary(reg1)
-```
-
-
-
+## Dividing the Data
 ```{r}
 #Creating training data
 inTrain <- createDataPartition(
-              y = paste(sales_external_data.sf$NUM_FLOORS.cat, sales_external_data.sf$NUM_BEDS.cat), 
+              y = paste(CLT_internal$NUM_FLOORS.cat, CLT_internal$NUM_BEDS.cat), 
               p = .60, list = FALSE)
 charlotte.training <- sales_external_data.sf[inTrain,] 
 charlotte.test <- sales_external_data.sf[-inTrain,]  
@@ -760,4 +536,15 @@ ggplot(npa.mean.sf, aes(x=meanPrice, y=meanAPE)) +
   ylab("Mean Absolute % Error") +
   xlab("Observed Sales Price")
 ```
+
+
+### MULTIVARIATE CORRELATION
+```{r}
+#Re-running multivariate correlation
+reg1 <- lm(price ~ ., data = st_drop_geometry(sales_external_data.sf) %>% 
+                                 dplyr::select(price, park_nn, grocery_nn, NUM_BATHS.cat, heatedarea, Quality, Age, NUM_BEDS.cat, numfirepla, HH_inc, college_perc, NUM_FLOORS.cat))
+
+summary(reg1)
+```
+
 
