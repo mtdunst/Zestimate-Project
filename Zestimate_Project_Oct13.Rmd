@@ -130,25 +130,21 @@ So far, we have added *internal*, *amenities*, and *spatial structure* variables
 **1. K-nearest neighbor (KNN):** this will find the distance between a given home and the most near amenities (school, grocery store, park).
 **2. Spatial join (SJ):** this will join our spatial structure data (educational attainment, neighborhoods) to our internal varies (Charlotte homes sales)
 
+*Note to instructor: the nn_function did not work as normal, perhaps due to the geometry featuring  multiple points (versus just X and Y), so we took the central point of each feature.* 
+
 ```{r}
-# Most near school ERROR 
+# Most near school, grocery store, and park 
 CLT_internal <-
   CLT_internal %>% 
     mutate(
-      school_nn1 = nn_function(st_coordinates(CLT_internal), st_coordinates(CLT_schools),k = 1))
+      school_nn1 = nn_function(st_coordinates(st_centroid(CLT_internal)), st_coordinates(st_centroid(CLT_schools)),k = 1),
+      grocery_nn1 = nn_function(st_coordinates(st_centroid(CLT_internal)), st_coordinates(st_centroid(CLT_grocery)), k = 1),
+       park_nn1 = nn_function(st_coordinates(st_centroid(CLT_internal)), st_coordinates(st_centroid(CLT_parks)), k = 1))
 
-# Most near grocery store
-CLT_internal <-
-  CLT_internal %>% 
-    mutate(
-      grocery_nn1 = nn_function(st_coordinates(CLT_internal), st_coordinates(CLT_grocery), k = 1))
-
-# Most near park
-CLT_internal <-
-  CLT_internal %>% 
-    mutate(
-      park_nn1 = nn_function(st_coordinates(CLT_internal), st_coordinates(CLT_parks), k = 1))
-
+# Spatial join 
+CLT_internal <- 
+  st_join(CLT_internal,CLT_demo.sf) %>%
+  st_join(CLT_internal, CLT_neighborhoods)
 ```
 
 
