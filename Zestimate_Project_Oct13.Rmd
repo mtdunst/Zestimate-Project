@@ -58,7 +58,7 @@ However, for this project we were **not** allowed to use sales data towards our 
 To gather data, our team focused on Mecklenberg County, NC (Charlotte Metro Area) and sourced information from the county's open data website, as well as the American Community Survey and U.S.Census.
 
 ## Charlotte Home Sales Data
-To begin, we will import a home sales dataset that includes variables like location, housing characteristics, and home quality for the Charlotte Metro Area. After, we will 'clean' our data by creating useful columns such as, "age of home (age)", "price per square foot (pricesqft)" and calculating the # of "total baths (totbaths)" by joining full and half-bathroom information. Moving forward, we'll refer to this home sales data as **"internal variables."** 
+To begin, we will import a home sales dataset that includes variables like location, housing characteristics, and home quality for the Charlotte Metro Area. After, we will 'clean' our data by creating useful columns such as, "building grade" as a numeric value *(where higher values correspond to greater quality)*, "age of home (age)", "price per square foot (pricesqft)" and calculating the # of "total baths (totbaths)" by joining full and half-bathroom information. Moving forward, we'll refer to this home sales data as **"internal variables."** 
 ```{r}
 #Import sales data, remove columns we won't need, add useful columns, set CRS for North Carolina
 CLT_internal <- 
@@ -71,10 +71,13 @@ CLT_internal <- CLT_internal[c(5,9,20,21,26,28,30:46,57:60,67,68,70,71,72)] %>%
     sqft = (totalac * 43560),
      pricesqft = ((totalac * 43560)/price),
         totbaths = (halfbaths)+(fullbaths))
+
+  CLT_internal$quality <- recode(CLT_internal$bldggrade, MINIMUM = 1 , FAIR = 2, AVERAGE = 3, GOOD = 4, VERYGOOD = 5, EXCELLENT = 6, CUSTOM = 7)
 ```
 
 ## Adding Amenities Data
 To build a strong algorithm (model), it's important to include variables that relate to the housing market such as local schools, grocery stores, and parks. We'll refer to these variables as **"amenities."**
+
 ```{r tigris_use_cache= TRUE}
 # Adding school data 
 CLT_schools <- 
@@ -182,7 +185,7 @@ Below is a table visualizing correlation between our variables. We can see the h
 We can use this matrix to inform our variable selection for our model.
 ```{r corrmatrix}
 numericVars <- st_drop_geometry(CLT_internal) %>%
-  dplyr::select(price, sqft, pricesqft, totbaths, bedrooms, numfirepla, heatedarea, yearbuilt, school_nn1, grocery_nn1, park_nn1, HH_inc, college_perc, FID) %>%
+  dplyr::select(price, age, sqft, pricesqft, totbaths, bedrooms, numfirepla, heatedarea, yearbuilt, school_nn1, grocery_nn1, park_nn1, HH_inc, college_perc, FID) %>%
   select(where(is.numeric)) %>%
   na.omit()
 
@@ -196,6 +199,26 @@ ggcorrplot(
   plotTheme()
 ```
 
+## Scatterplots 
+Below are 4 home price correlation scatterplots based upon the results of our correlation matrix:
+```{r scatter}
+st_drop_geometry(CLT_internal) %>% 
+  dplyr::select(price, pricesqft, totalbaths, qualityCode, builtYear, bsmtSF, carStorageSF,nbrBedRoom,
+                nbrRoomsNobath, mainfloorSF, TotalFinishedSF, Ac, Heating, PerBDorHig, PerWhitePo,
+                MedHHInc, ) %>% 
+  filter(price < 10000000) %>%
+  gather(Variable, Value, -price) %>% 
+   ggplot(aes(Value, price)) +
+     geom_point(size = .5) + geom_smooth(method = "lm", se=F, colour = "#FA7800") +
+     facet_wrap(~Variable, ncol = 3, scales = "free") +
+     labs(title = "Price as a function of continuous variables", 
+          caption="Figure 4.1") +
+     plotTheme()
+```
+
+Develop 1 map of your dependent variable (sale price)
+Develop 3 maps of 3 of your most interesting independent variables.
+Include any other maps/graphs/charts you think might be of interest.
 
 # Methods
 # Results
