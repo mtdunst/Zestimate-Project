@@ -68,6 +68,7 @@ CLT_internal <-
 CLT_internal <- CLT_internal[c(5,9,20,21,26,28,30:46,57:60,67,68,70,71,72)] %>%
   mutate(
     age = 2022 - yearbuilt,
+    sqft = (totalac * 43560),
      pricesqft = ((totalac * 43560)/price),
         totbaths = (halfbaths)+(fullbaths))
 ```
@@ -93,10 +94,10 @@ CLT_parks <-
 ```
 
 ## Adding Spatial Structure Data 
-Finally, we will add variables that provide demographic and environmental data for the Charlotte Metro Area. Specifically, we will include educational attainment and neighborhoods data. We'll refer to these variables as **"spatial structure."**
+Finally, we will add variables that provide demographic and environmental data for the Charlotte Metro Area. Specifically, we will include educational attainment, household income, and neighborhoods data. We'll refer to these variables as **"spatial structure."**
 ```{r}
 # Adding demographic data
-CLT_demo.sf <- 
+CLT_demo <- 
   get_acs(geography = "tract", 
           variables = c("B19013_001E", "B15003_022E","B15003_001E"), 
           year=2020, state=37, county=119, 
@@ -104,8 +105,8 @@ CLT_demo.sf <-
   st_transform(st_crs(CLT_internal)) %>%
   dplyr::select( -NAME, -B19013_001M, -B15003_022M, -B15003_001M)
 
-CLT_demo.sf <-
-  CLT_demo.sf %>%
+CLT_demo <-
+  CLT_demo %>%
   rename(HH_inc = B19013_001E, 
          College = B15003_022E,
          College_age_pop = B15003_001E) %>%
@@ -137,31 +138,64 @@ CLT_internal <-
 
 # Spatial join 
 CLT_internal <- 
-  st_join(CLT_internal,CLT_demo.sf) 
+  st_join(CLT_internal,CLT_demo) 
 
 CLT_internal <- 
   st_join(CLT_internal, CLT_neighborhoods)
 ```
 
-## Summary Statistics 
+## Summary Statistics **CHECK**
 Below are summary statistics tables for each variable category (internal, amenities,spatial structure). 
 ```{r summary stats}
 #Internal variables 
 ss_internal <- CLT_internal
 ss_internal <- st_drop_geometry(ss_internal)
 ss_internal <- ss_internal %>%
-  dplyr::select("pricesqft", "totalbaths", "builtYear", "bsmtSF", "carStorageSF", "nbrBedRoom", "nbrRoomsNobath", "mainfloorSF", "TotalFinishedSF") 
+  dplyr::select("sqft","pricesqft", "totbaths", "yearbuilt") 
+stargazer(as.data.frame(ss_internal), type="html", digits=1, title = "Descriptive Statistics for Charlotte Metro Area Homes Internal Variables")
 
-stargazer(as.data.frame(ss_boulderInternal), type="html", digits=1, title = "Descriptive Statistics for Charlotte Metro Area Homes [Internal] Variables")
+#Amenities 
+ss_amenities <- CLT_internal
+ss_amenities <- st_drop_geometry(ss_amenities)
+ss_amenities <- ss_amenities %>%
+  dplyr::select("school_nn1", "grocery_nn1", "park_nn1") 
+stargazer(as.data.frame(ss_internal), type="html", digits=1, title = "Descriptive Statistics for Charlotte Metro Area Homes Amentity Variables")
+
+# Spatial Structure
+ss_spatial <- CLT_internal
+ss_spatial <- st_drop_geometry(ss_spatial)
+ss_spatial <- ss_spatial %>%
+  dplyr::select("HH_inc", "college_perc", "FID") 
+stargazer(as.data.frame(ss_internal), type="html", digits=1, title = "Descriptive Statistics for Charlotte Metro Area Homes Internal Variables")
 ```
 
-**Briefly describe your methods for gathering the data**
-**Present a table of summary statistics with variable descriptions. Sort these variables by their category (internal characteristics, amenities/public services or spatial structure). Check out the `stargazer` package for this.**
-**Present a correlation matrix**
-**Present 4 home price correlation scatterplots that you think are of interest. I’m going to look for interesting open data that you’ve integrated with the home sale observations.**
-**Develop 1 map of your dependent variable (sale price)**
-**Develop 3 maps of 3 of your most interesting independent variables.**
-**Include any other maps/graphs/charts you think might be of interest.** 
+## Correlation Matrix
+Below is a table visualizing correlation between our variables. We can see the home price maintains a positive correlation with the following variables (in order of strength):
+
+* heated square footed of the home
+* total bathrooms
+* household income
+* percentage of residents with college degrees 
+* bedrooms
+* number of fireplaces in the home
+
+We can use this matrix to inform our variable selection for our model.
+```{r corrmatrix}
+numericVars <- st_drop_geometry(CLT_internal) %>%
+  dplyr::select(price, sqft, pricesqft, totbaths, bedrooms, numfirepla, heatedarea, yearbuilt, school_nn1, grocery_nn1, park_nn1, HH_inc, college_perc, FID) %>%
+  select(where(is.numeric)) %>%
+  na.omit()
+
+ggcorrplot(
+  round(cor(numericVars), 1),
+  p.mat = cor_pmat(numericVars),
+  colors = c("lightskyblue", "white", "firebrick1"),
+  type="lower",
+  insig = "blank") +  
+    labs(title = "Correlation Matrix of Numeric Variables") +
+  plotTheme()
+```
+
 
 # Methods
 # Results
