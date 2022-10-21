@@ -58,24 +58,18 @@ However, for this project we were **not** allowed to use sales data towards our 
 To gather data, our team focused on Mecklenberg County, NC (Charlotte Metro Area) and sourced information from the county's open data website, as well as the American Community Survey and U.S.Census.
 
 ## Charlotte Home Sales Data
-To begin, we will import a home sales dataset that includes variables like location, housing characteristics, and home quality for the Charlotte Metro Area. After, we will 'clean' our data by re-categorizing certain variables such as the # of bedrooms, bathrooms, and floors a home has. Moving forward, we'll refer to this home sales data as **"internal variables."** 
+To begin, we will import a home sales dataset that includes variables like location, housing characteristics, and home quality for the Charlotte Metro Area. After, we will 'clean' our data by creating useful columns such as, "age of home (age)", "price per square foot (pricesqft)" and calculating the # of "total baths (totbaths)" by joining full and half-bathroom information. Moving forward, we'll refer to this home sales data as **"internal variables."** 
 ```{r}
-#Import sales data, remove columns we won't need, set CRS for North Carolina
+#Import sales data, remove columns we won't need, add useful columns, set CRS for North Carolina
 CLT_internal <- 
   st_read("https://github.com/mafichman/MUSA_508_Lab/raw/main/Midterm/data/2022/studentData.geojson") %>%
   st_transform('ESRI:103500')
 
-CLT_internal <- CLT_internal[c(5,9,20,21,26,28,30:46,57:60,67,68,70,71,72)]
-
-CLT_internal.sf <- 
-  CLT_internal %>% 
-  st_as_sf(sf_column_name=geometry) %>%
-  st_transform('ESRI:103500') %>%
-  mutate(Age = 2022 - yearbuilt)
-
-CLT_internal.sf <-
-  CLT_internal.sf %>%
-  filter(units < 205)
+CLT_internal <- CLT_internal[c(5,9,20,21,26,28,30:46,57:60,67,68,70,71,72)] %>%
+  mutate(
+    age = 2022 - yearbuilt,
+     pricesqft = ((totalac * 43560)/price),
+        totbaths = (halfbaths)+(fullbaths))
 ```
 
 ## Adding Amenities Data
@@ -143,14 +137,22 @@ CLT_internal <-
 
 # Spatial join 
 CLT_internal <- 
-  st_join(CLT_internal,CLT_demo.sf) %>%
+  st_join(CLT_internal,CLT_demo.sf) 
+
+CLT_internal <- 
   st_join(CLT_internal, CLT_neighborhoods)
 ```
 
-
 ## Summary Statistics 
+Below are summary statistics tables for each variable category (internal, amenities,spatial structure). 
 ```{r summary stats}
+#Internal variables 
+ss_internal <- CLT_internal
+ss_internal <- st_drop_geometry(ss_internal)
+ss_internal <- ss_internal %>%
+  dplyr::select("pricesqft", "totalbaths", "builtYear", "bsmtSF", "carStorageSF", "nbrBedRoom", "nbrRoomsNobath", "mainfloorSF", "TotalFinishedSF") 
 
+stargazer(as.data.frame(ss_boulderInternal), type="html", digits=1, title = "Descriptive Statistics for Charlotte Metro Area Homes [Internal] Variables")
 ```
 
 **Briefly describe your methods for gathering the data**
