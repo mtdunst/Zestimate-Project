@@ -306,24 +306,35 @@ CLT_internal <-
 ```
 
 ## Dividing the Data
+Our data will be partitioned as a 60/40 train-test split. After, we'll run a regression on our training set (60%) and use the results to determine the generalizability with our 'test' data.
 ```{r}
 #Creating training data
 inTrain <- createDataPartition(
               y = paste(CLT_internal$NUM_FLOORS.cat, CLT_internal$NUM_BEDS.cat), 
               p = .60, list = FALSE)
-charlotte.training <- sales_external_data.sf[inTrain,] 
-charlotte.test <- sales_external_data.sf[-inTrain,]  
+charlotte.training <- CLT_internal[inTrain,] 
+charlotte.test <- CLT_internal[-inTrain,]  
 
 reg.training <- lm(price ~ ., data = st_drop_geometry(charlotte.training) %>% 
                                     dplyr::select(price, heatedarea, 
-                                               Quality, NUM_FLOORS.cat,
+                                               quality, NUM_FLOORS.cat,
                                                NUM_BEDS.cat, NUM_BATHS.cat, 
-                                               park_nn, grocery_nn,
-                                               Age, HH_inc, college_perc))
-
+                                               park_nn1, grocery_nn1,
+                                               age, HH_inc, college_perc))
 summary(reg.training)
 ```
 
+## Evaluating Generalizability
+To test the strength (accuracy) of our model in its ability to predict prices, we will:
+
+1. Find the **mean absolute error (MAE)** + **mean absolute percentage error (MAPE),** 
+2. Conduct cross-validation tests
+3. Plot predicted prices as a function of observed prices
+4. Map our test set residuals, including a **Moran’s I test and a plot** of the spatial lag in errors
+5. Map of mean absolute percentage error (MAPE) by neighborhood.
+6. Create a scatterplot plot of MAPE by neighborhood as a function of mean price by neighborhood
+
+### MAE & MAPE 
 ```{r}
 #Creating predictions and calculating Mean Absolute Error (MAE) and Mean Absolute Percent Error (MAPE)
 charlotte.test <-
@@ -334,8 +345,32 @@ charlotte.test <-
          price.APE = (abs(price.Predict - price)) / price.Predict)%>%
   filter(price < 5000000)
 
-mean(charlotte.test$price.AbsError, na.rm = T)
-mean(charlotte.test$price.APE, na.rm = T)
+MAE <- mean(charlotte.test$price.AbsError, na.rm = T)
+MAPE <- mean(charlotte.test$price.APE, na.rm = T)
+
+reg.MAE.MAPE <- 
+  cbind(MAE, MAPE) %>%
+  kable(caption = "Regression MAE & MAPE") %>%
+  kable_styling("hover",full_width = F) 
+
+reg.MAE.MAPE
+```
+### Cross Validation
+```{r}
+#Cross-validation
+fitControl <- trainControl(method = "cv", number = 100)
+set.seed(825)
+
+reg.cv <- 
+  train(price ~ ., data = st_drop_geometry(CLT_internal) %>% 
+                                dplyr::select(price, heatedarea, 
+                                               quality, NUM_FLOORS.cat,
+                                               NUM_BEDS.cat, NUM_BATHS.cat, grocery_nn1,
+                                               age, HH_inc, college_perc, 
+                                               park_nn1), 
+     method = "lm", trControl = fitControl, na.action = na.pass)
+
+summary(reg.cv)
 ```
 
 ```{r}
@@ -392,24 +427,6 @@ ggplot(
 ```
 
 ```{r}
-#Cross-validation
-fitControl <- trainControl(method = "cv", number = 100)
-set.seed(825)
-
-reg.cv <- 
-  train(price ~ ., data = st_drop_geometry(sales_external_data.sf) %>% 
-                                dplyr::select(price, heatedarea, 
-                                               Quality, NUM_FLOORS.cat,
-                                               NUM_BEDS.cat, NUM_BATHS.cat, grocery_nn,
-                                               Age, HH_inc, college_perc, 
-                                               park_nn), 
-     method = "lm", trControl = fitControl, na.action = na.pass)
-
-summary(reg.cv)
-```
-
-
-```{r}
 #Calculating Moran's I
 coords.test <-  st_coordinates(charlotte.test) 
 
@@ -457,8 +474,8 @@ charlotte.test.nhood <-
 charlotte.test <-charlotte.test %>%
   mutate(Regression = "Baseline")
 
-sales_predictions.sf <- sales_external_data.sf %>%
-  mutate(price.Predict = predict(reg.nhood, sales_external_data.sf)) %>%
+sales_predictions.sf <- CLT_internal %>%
+  mutate(price.Predict = predict(reg.nhood, CLT_internal)) %>%
   filter(toPredict == "CHALLENGE")
 
 sales_predictions.df <- as.data.frame(st_drop_geometry(sales_predictions.sf))
@@ -494,26 +511,6 @@ bothRegressions %>%
   plotTheme()
 ```
 
-```{r}
-#Mapping MAPE by neighborhood
-ggplot() +
-  geom_sf(data = neighborhoods.sf, fill="grey40") +
-  geom_sf(data = bothRegressions, aes(colour = price.APE), 
-          show.legend = "point", size = .75) +
-  binned_scale(aesthetics = "color",
-               scale_name = "stepsn", 
-               palette = function(x) c("#1a9641", "#a6d96a", "#ffffbf", "#fdae61", "#d7191c"),
-               breaks = c(0.10, 0.20, 0.5, 0.75),
-               limits = c(0, 50),
-               show.limits = TRUE, 
-               guide = "colorsteps"
-  ) +
-  labs(title="Neighborhoods vs Home Price", subtitle="Charlotte Metro Area") +
-  scalebar(neighborhoods.sf, dist=5, dist_unit="mi", st.size = 3, location="bottomleft", transform=FALSE) +
-  labs(color = "Absolute % Error") +
-  facet_wrap(~Regression) +
-  mapTheme()
-```
 
 ```{r}
 #Scatter plot of MAPE by neighborhood mean price
@@ -541,8 +538,8 @@ ggplot(npa.mean.sf, aes(x=meanPrice, y=meanAPE)) +
 ### MULTIVARIATE CORRELATION
 ```{r}
 #Re-running multivariate correlation
-reg1 <- lm(price ~ ., data = st_drop_geometry(sales_external_data.sf) %>% 
-                                 dplyr::select(price, park_nn, grocery_nn, NUM_BATHS.cat, heatedarea, Quality, Age, NUM_BEDS.cat, numfirepla, HH_inc, college_perc, NUM_FLOORS.cat))
+reg1 <- lm(price ~ ., data = st_drop_geometry(CLT_internal) %>% 
+                                 dplyr::select(price, park_nn1, grocery_nn1, NUM_BATHS.cat, heatedarea, quality, age, NUM_BEDS.cat, numfirepla, HH_inc, college_perc, NUM_FLOORS.cat))
 
 summary(reg1)
 ```
