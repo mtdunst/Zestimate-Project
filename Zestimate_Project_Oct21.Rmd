@@ -45,20 +45,25 @@ source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-L
 palette5 <- c("#25CB10", "#5AB60C", "#8FA108",   "#C48C04", "#FA7800")
 
 ```
+
 # Introduction
+
 Welcome! **The purpose of this project is to produce an algorithm (model) that can help the online real-estate website, Zillow.com, predict home sale prices with greater accuracy.** Improving real-estate valuations are important for several reasons. Namely it:
 
-1. Improves user experience 
-2. Provides context for anticipated property taxes and homeowner's insurance
-3. Alleviates historic and systemic biases commonplace with home valuations in neighborhoods of color
+1.  Improves user experience
+2.  Provides context for anticipated property taxes and homeowner's insurance
+3.  Alleviates historic and systemic biases commonplace with home valuations in neighborhoods of color
 
-However, for this project we were **not** allowed to use sales data towards our algorithm. This rule added a level of difficulty because sales data is a strong predictor towards home valuation (e.g. the sales' price of your neighbor's home is likely very similar to the sales price of your home). We were able to make up for this by emphasizing other variables such as # of floors, bedrooms, bathrooms, the quality of nearby schools, as well as a home's proximity to nearby grocery stores. Overall, our model is sufficient and can be strengthened with a few modifications. For instance, **[XXXXXX]**
+However, for this project we were **not** allowed to use sales data towards our algorithm. This rule added a level of difficulty because sales data is a strong predictor towards home valuation (e.g. the sales' price of your neighbor's home is likely very similar to the sales price of your home). We were able to make up for this by emphasizing other variables such as \# of floors, bedrooms, bathrooms, the quality of nearby schools, as well as a home's proximity to nearby grocery stores. Overall, our model is sufficient and can be strengthened with a few modifications. For instance, **[XXXXXX]**
 
 # Data
+
 To gather data, our team focused on Mecklenberg County, NC (Charlotte Metro Area) and sourced information from the county's open data website, as well as the American Community Survey and U.S.Census.
 
 ## Charlotte Home Sales Data
-To begin, we will import a home sales dataset that includes variables like location, housing characteristics, and home quality for the Charlotte Metro Area. After, we will 'clean' our data by creating useful columns such as, "building grade" as a numeric value *(where higher values correspond to greater quality)*, "age of home (age)", "price per square foot (pricesqft)" and calculating the # of "total baths (totbaths)" by joining full and half-bathroom information. Moving forward, we'll refer to this home sales data as **"internal variables."** 
+
+To begin, we will import a home sales dataset that includes variables like location, housing characteristics, and home quality for the Charlotte Metro Area. After, we will 'clean' our data by creating useful columns such as, "building grade" as a numeric value *(where higher values correspond to greater quality)*, "age of home (age)", "price per square foot (pricesqft)" and calculating the \# of "total baths (totbaths)" by joining full and half-bathroom information. Moving forward, we'll refer to this home sales data as **"internal variables."**
+
 ```{r}
 #Import sales data, remove columns we won't need, add useful columns, set CRS for North Carolina
 CLT_internal <- 
@@ -76,6 +81,7 @@ CLT_internal <- CLT_internal[c(5,9,20,21,26,28,30:46,57:60,67,68,70,71,72)] %>%
 ```
 
 ## Adding Amenities Data
+
 To build a strong algorithm (model), it's important to include variables that relate to the housing market such as local schools, grocery stores, and parks. We'll refer to these variables as **"amenities."**
 
 ```{r tigris_use_cache= TRUE}
@@ -96,8 +102,10 @@ CLT_parks <-
 
 ```
 
-## Adding Spatial Structure Data 
+## Adding Spatial Structure Data
+
 Finally, we will add variables that provide demographic and environmental data for the Charlotte Metro Area. Specifically, we will include educational attainment, household income, and neighborhoods data. We'll refer to these variables as **"spatial structure."**
+
 ```{r}
 # Adding demographic data
 CLT_demo <- 
@@ -122,13 +130,13 @@ CLT_neighborhoods <-
   st_transform(st_crs(CLT_internal))
 ```
 
-## Orienting Our Variables 
+## Orienting Our Variables
+
 So far, we have added *internal*, *amenities*, and *spatial structure* variables. However, in order to build our model and analyze how these variables relate to home sales, we must modify them. We'll achieve this using 2 techniques:
 
-**1. K-nearest neighbor (KNN):** this will find the distance between a given home and the most near amenities (school, grocery store, park).
-**2. Spatial join (SJ):** this will join our spatial structure data (educational attainment, neighborhoods) to our internal varies (Charlotte homes sales)
+**1. K-nearest neighbor (KNN):** this will find the distance between a given home and the most near amenities (school, grocery store, park). **2. Spatial join (SJ):** this will join our spatial structure data (educational attainment, neighborhoods) to our internal varies (Charlotte homes sales)
 
-*Note to instructor: the nn_function did not work as normal, perhaps due to the geometry featuring  multiple points (versus just X and Y), so we took the central point of each feature.* 
+*Note to instructor: the nn_function did not work as normal, perhaps due to the geometry featuring multiple points (versus just X and Y), so we took the central point of each feature.*
 
 ```{r}
 # Most near school, grocery store, and park 
@@ -147,43 +155,47 @@ CLT_internal <-
   st_join(CLT_internal, CLT_neighborhoods)
 ```
 
-## Summary Statistics **CHECK**
-Below are summary statistics tables for each variable category (internal, amenities,spatial structure). 
+## Summary Statistics
+
+Below are summary statistics tables for each variable category (internal, amenities,spatial structure).
+
 ```{r summary stats}
 #Internal variables 
 ss_internal <- CLT_internal
 ss_internal <- st_drop_geometry(ss_internal)
 ss_internal <- ss_internal %>%
   dplyr::select("sqft","pricesqft", "totbaths", "yearbuilt") 
-stargazer(as.data.frame(ss_internal), type="html", digits=1, title = "Descriptive Statistics for Charlotte Metro Area Homes Internal Variables")
+stargazer(as.data.frame(ss_internal), type="text", digits=1, title = "Descriptive Statistics for Charlotte Metro Area Homes Internal Variables")
 
 #Amenities 
 ss_amenities <- CLT_internal
 ss_amenities <- st_drop_geometry(ss_amenities)
 ss_amenities <- ss_amenities %>%
   dplyr::select("school_nn1", "grocery_nn1", "park_nn1") 
-stargazer(as.data.frame(ss_internal), type="html", digits=1, title = "Descriptive Statistics for Charlotte Metro Area Homes Amentity Variables")
+stargazer(as.data.frame(ss_amenities), type="text", digits=1, title = "Descriptive Statistics for Charlotte Metro Area Homes Amentity Variables")
 
 # Spatial Structure
 ss_spatial <- CLT_internal
 ss_spatial <- st_drop_geometry(ss_spatial)
 ss_spatial <- ss_spatial %>%
   dplyr::select("HH_inc", "college_perc", "FID") 
-stargazer(as.data.frame(ss_internal), type="html", digits=1, title = "Descriptive Statistics for Charlotte Metro Area Homes Internal Variables")
+stargazer(as.data.frame(ss_spatial), type="text", digits=1, title = "Descriptive Statistics for Charlotte Metro Area Homes Internal Variables")
 ```
 
 ## Correlation Matrix
-Below is a table visualizing correlation between our variables. We can see the home price maintains a positive correlation with the following variables (in order of strength):
 
-* heated square footed of the home
-* home quality 
-* total bathrooms
-* household income
-* percentage of residents with college degrees 
-* bedrooms
-* number of fireplaces in the home
+Below is a table visualizing correlation between our variables. We can see the home price maintains a <span style="color:firebrick1;">postive</span> correlation with the following variables *(in order of strength)*:
+
+-   heated square footed of the home
+-   home quality
+-   total bathrooms
+-   household income
+-   percentage of residents with college degrees
+-   bedrooms
+-   number of fireplaces in the home
 
 We can use this matrix to inform our variable selection for our model.
+
 ```{r corrmatrix}
 numericVars <- select_if(st_drop_geometry(CLT_internal), is.numeric) %>% na.omit()
 
@@ -193,12 +205,14 @@ ggcorrplot(
   colors = c("deepskyblue", "grey100", "firebrick1"),
   type="lower",
   insig = "blank") +  
-    labs(title = "Correlation Matrix of Numeric Variables") +
+    labs(title = "Correlation Matrix of Numeric Variables", tl.cex = 0.5, tl.col = "black") +
   plotTheme()
 ```
 
-## Scatterplots 
+## Scatterplots
+
 Below are 4 home price correlation scatterplots based upon the results of our correlation matrix:
+
 ```{r scatter}
 st_drop_geometry(CLT_internal) %>% 
   dplyr::select(price, quality, heatedarea, HH_inc, yearbuilt) %>% 
@@ -210,16 +224,23 @@ st_drop_geometry(CLT_internal) %>%
      labs(title = "Price as a function of Internal and Spatial Variables") +
   plotTheme()
 ```
+
 ## Maps
+
 Below are 4 maps including:
-1. A map of our dependent variable (price) 
-2. A map of park locations
-3. A map of nearby grocery stores
-4. A map of school quality
+
+1\. A map of our dependent variable (price)
+
+2\. A map of park locations
+
+3\. A map of nearby grocery stores
+
+4\. A map of school quality
 
 *Note: the first 3 maps are in relation to home prices within the Charlotte Metro Area.*
 
 ### Map 1: Home Price
+
 ```{r price}
 ggplot() +
   geom_sf(data = CLT_neighborhoods, fill = "grey40") +
@@ -233,7 +254,8 @@ ggplot() +
   mapTheme()
 ```
 
-### Map 2: Parks vs Home Price 
+### Map 2: Parks vs Home Price
+
 ```{r parks}
 ggplot() +
   geom_sf(data = CLT_neighborhoods, fill = "grey70") +
@@ -246,7 +268,9 @@ ggplot() +
   labs(title="Park Locations vs Home Price", subtitle="Charlotte Metro Area") +
   mapTheme()
 ```
+
 ### Map 3: Grocery Stores vs Home Price
+
 ```{r grocery}
 ggplot() +
   geom_sf(data = CLT_neighborhoods, fill = "grey30") +
@@ -259,7 +283,9 @@ ggplot() +
   labs(title="Grocery Store Locations vs Home Price", subtitle="Charlotte Metro Area") +
   mapTheme()
 ```
+
 ### Map 4: School Quality
+
 ```{r schoolqual}
 ggplot() +
   geom_sf(data = CLT_schools, aes(fill=factor(Quality), color=factor(Quality))) +
@@ -269,15 +295,12 @@ ggplot() +
   mapTheme()
 ```
 
-# Methods
-# Results
-# Conclusion
-## Gathering
-
 # Time to Train!
-Now that we have identified important variables, we will build out model by dividing the data into training/test sets. 
+
+Now that we have identified important variables, we will build out model by dividing the data into training/test sets.
 
 *Before dividing the dataset we will create categorical variables for the number of floors, bathrooms, and bedrooms for a given home.*
+
 ```{r floors}
 #Re-engineering data as categorical: number of floors
 CLT_internal<- 
@@ -303,7 +326,9 @@ CLT_internal <-
 ```
 
 ## Dividing the Data
+
 Our data will be partitioned as a 60/40 train-test split. After, we'll run a regression on our training set (60%) and use the results to determine the generalizability with our 'test' data.
+
 ```{r}
 #Creating training data
 inTrain <- createDataPartition(
@@ -322,16 +347,18 @@ summary(reg.training)
 ```
 
 ## Evaluating Generalizability
+
 To test the strength (accuracy) of our model in its ability to predict prices, we will:
 
-1. Find the **mean absolute error (MAE)** + **mean absolute percentage error (MAPE),** 
-2. Conduct cross-validation tests
-3. Plot predicted prices as a function of observed prices
-4. Map our test set residuals, including a **Moran’s I test and a plot** of the spatial lag in errors
-5. Map of mean absolute percentage error (MAPE) by neighborhood.
-6. Create a scatterplot plot of MAPE by neighborhood as a function of mean price by neighborhood
+1.  Find the **mean absolute error (MAE)** + **mean absolute percentage error (MAPE),**
+2.  Conduct cross-validation tests
+3.  Plot predicted prices as a function of observed prices
+4.  Map our test set residuals, including a **Moran's I test and a plot** of the spatial lag in errors
+5.  Map of mean absolute percentage error (MAPE) by neighborhood.
+6.  Create a scatterplot plot of MAPE by neighborhood as a function of mean price by neighborhood
 
-### MAE & MAPE 
+### MAE & MAPE
+
 ```{r}
 #Creating predictions and calculating Mean Absolute Error (MAE) and Mean Absolute Percent Error (MAPE)
 charlotte.test <-
@@ -352,7 +379,9 @@ reg.MAE.MAPE <-
 
 reg.MAE.MAPE
 ```
+
 ### Cross Validation
+
 ```{r}
 #Cross-validation
 fitControl <- trainControl(method = "cv", number = 100)
@@ -421,6 +450,7 @@ ggplot(
     color = "black",
     fill="grey80")
 ```
+
 ## Evaluating Spatial Bias
 
 By calculating Moran's I for this dataset, we are determining if there is a spatial relationship among home sales in Charlotte. As seen in the outcome, Moran's I was calculated to be high, meaning there is a spatial relationship in the predicted errors that must be accounted for.
@@ -450,6 +480,7 @@ ggplot(as.data.frame(moranTest$res[c(1:999)]), aes(moranTest$res[c(1:999)])) +
        y="Count") +
   plotTheme()
 ```
+
 ## Accounting for Neighborhood
 
 We introduce neighborhoods into the model to attempt to account to spatial bias in our predictions. This increases the R-squared of the model.
@@ -498,7 +529,8 @@ bothRegressions <-
     dplyr::select(charlotte.test.nhood, starts_with("price"), Regression, MIDD_NAME) %>%
       mutate(lagPriceError = lag.listw(spatialWeights.test, price.Error, NAOK=TRUE)))    
 ```
-## Visualizing neighborhood effects
+
+## Visualizing Neighborhood Effects
 
 While controlling for neighborhood improved our model, the difference is small and hard to notice visually like this.
 
@@ -518,7 +550,6 @@ bothRegressions %>%
   plotTheme()
 ```
 
-
 ```{r}
 #Scatter plot of MAPE by neighborhood mean price
 npa.mean.sf <- charlotte.test %>%
@@ -535,5 +566,3 @@ ggplot(npa.mean.sf, aes(x=MIDD_NAME, y=mean_APE)) +
 
 
 ```
-
-
