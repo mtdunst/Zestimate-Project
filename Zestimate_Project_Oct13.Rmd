@@ -456,10 +456,10 @@ ggplot(as.data.frame(moranTest$res[c(1:999)]), aes(moranTest$res[c(1:999)])) +
 #Adjusting for neighborhod
 reg.nhood <- lm(price ~ ., data = as.data.frame(charlotte.training) %>% 
                                  dplyr::select(price, heatedarea, 
-                                               Quality, NUM_FLOORS.cat,
+                                               quality, NUM_FLOORS.cat,
                                                NUM_BEDS.cat, NUM_BATHS.cat, 
-                                               park_nn, grocery_nn, MIDD_NAME,
-                                               Age, HH_inc, college_perc))
+                                               park_nn1, grocery_nn1, MIDD_NAME,
+                                               age, HH_inc, college_perc))
 summary(reg.nhood)
 
 charlotte.test.nhood <-
