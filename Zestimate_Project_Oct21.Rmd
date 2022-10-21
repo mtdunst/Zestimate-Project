@@ -54,8 +54,6 @@ Welcome! **The purpose of this project is to produce an algorithm (model) that c
 2.  Provides context for anticipated property taxes and homeowner's insurance
 3.  Alleviates historic and systemic biases commonplace with home valuations in neighborhoods of color
 
-However, for this project we were **not** allowed to use sales data towards our algorithm. This rule added a level of difficulty because sales data is a strong predictor towards home valuation (e.g. the sales' price of your neighbor's home is likely very similar to the sales price of your home). We were able to make up for this by emphasizing other variables such as \# of floors, bedrooms, bathrooms, the quality of nearby schools, as well as a home's proximity to nearby grocery stores. Overall, our model is sufficient and can be strengthened with a few modifications. For instance, **[XXXXXX]**
-
 # Data
 
 To gather data, our team focused on Mecklenberg County, NC (Charlotte Metro Area) and sourced information from the county's open data website, as well as the American Community Survey and U.S.Census.
@@ -184,7 +182,7 @@ stargazer(as.data.frame(ss_spatial), type="text", digits=1, title = "Descriptive
 
 ## Correlation Matrix
 
-Below is a table visualizing correlation between our variables. We can see the home price maintains a <span style="color:firebrick1;">postive</span> correlation with the following variables *(in order of strength)*:
+Below is a table visualizing correlation between our variables. We can see the home price maintains a [postive]{style="color:firebrick1;"} correlation with the following variables *(in order of strength)*:
 
 -   heated square footed of the home
 -   home quality
@@ -381,7 +379,6 @@ reg.MAE.MAPE
 ```
 
 ### Cross Validation
-
 ```{r}
 #Cross-validation
 fitControl <- trainControl(method = "cv", number = 100)
@@ -399,6 +396,7 @@ reg.cv <-
 summary(reg.cv)
 ```
 
+### Visualizing Prediction Errors 
 ```{r}
 #Visualizing prediction errors
 charlotte.APE <- charlotte.test[c(6,36,43:46,51,54)]
@@ -566,3 +564,10 @@ ggplot(npa.mean.sf, aes(x=MIDD_NAME, y=mean_APE)) +
 
 
 ```
+# Conclusion
+
+## Results
+Our variables are able to explain ~50% of the variation observed in Charlotte home prices (R squared). Our mean absolute error (MAE) is 106593.9, indicating that on average, our model's price predictions differ from actual home prices by ~$106,593. This is fair and may be due to outlier (costly homes) included in our dataset. Ultimately, the model is generalizeable, but requires some tweaks before our Zillow pitch meeting :)  
+
+## Discussion
+Overall, our model is sufficient and can be strengthened with a few modification. For example, for this project we were **not** allowed to use sales data towards our algorithm. This rule added a level of difficulty because sales data is a strong predictor towards home valuation (e.g. the sales' price of your neighbor's home is likely very similar to the sales price of your home). We were able to make up for this by emphasizing other variables such as # of floors, bedrooms, bathrooms,housing quality, the quality of nearby schools, as well as a home's proximity to nearby grocery stores. 
