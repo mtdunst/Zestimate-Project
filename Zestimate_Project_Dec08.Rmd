@@ -4,16 +4,9 @@ author: "Michael Dunst & Kemi Richards"
 date: "`r Sys.Date()`"
 output:
   html_document:
-    code_folding: hide
     toc: true
     toc_float: true
-knit: (function(input, encoding) {
-    rmarkdown::render(
-      input = input,
-      encoding = encoding,
-      envir = globalenv()
-    )
-  })    
+    code_folding: hide
 ---
 
 ```{r setup, echo=FALSE, install= TRUE, cache=TRUE, message=FALSE, results=FALSE}
@@ -50,17 +43,19 @@ source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-L
 
 palette5 <- c("#25CB10", "#5AB60C", "#8FA108",   "#C48C04", "#FA7800")
 
+census_api_key("228a8272ec0d91fff353de90cd84534d2ca03457", overwrite= TRUE)
+
 ```
 
 # Introduction
 
-Welcome! **The purpose of this project is to produce an algorithm (model) that can help the online real-estate website, Zillow.com, predict home sale prices with greater accuracy.** Improving real-estate valuations are important for several reasons. Namely it:
+Welcome! **The purpose of this project is to produce an algorithm that can help the online real-estate website, Zillow.com predict home sale prices with greater accuracy.** Improving real-estate valuations are important for several reasons. Namely it:
 
 1.  Improves user experience
 2.  Provides context for anticipated property taxes and homeowner's insurance
 3.  Alleviates historic and systemic biases commonplace with home valuations in neighborhoods of color
 
-# Data
+# Data Wrangling
 
 To gather data, our team focused on Mecklenberg County, NC (Charlotte Metro Area) and sourced information from the county's open data website, as well as the American Community Survey and U.S.Census.
 
@@ -136,6 +131,8 @@ CLT_neighborhoods <-
   st_transform(st_crs(CLT_internal))
 ```
 
+# Exploratory Data Analysis
+
 ## Orienting Our Variables
 
 So far, we have added *internal*, *amenities*, and *spatial structure* variables. However, in order to build our model and analyze how these variables relate to home sales, we must modify them. We'll achieve this using 2 techniques:
@@ -144,7 +141,7 @@ So far, we have added *internal*, *amenities*, and *spatial structure* variables
 
 **2. Spatial join (SJ):** this will join our spatial structure data (educational attainment, neighborhoods) to our internal varies (Charlotte homes sales)
 
-*<div align="center">Note to instructor: the nn_function did not work as normal, perhaps due to the geometry featuring multiple points (versus just X and Y), so we took the central point of each feature.</div>*
+<div align="center">*Note to instructor: the nn_function did not work as normal, perhaps due to the geometry featuring multiple points (versus just X and Y), so we took the central point of each feature.*</div>
 
 ```{r}
 # Most near school, grocery store, and park 
@@ -165,7 +162,7 @@ CLT_internal <-
 
 ## Summary Statistics
 
-Below are summary statistics tables for each variable category (internal, amenities,spatial structure).
+Below are summary statistics tables for each variable category (internal, amenities, spatial structure).
 
 ```{r summary stats}
 #Internal variables 
@@ -192,7 +189,7 @@ stargazer(as.data.frame(ss_spatial), type="text", digits=1, title = "Descriptive
 
 ## Correlation Matrix
 
-Below is a table visualizing correlation between our variables. We can see the home price maintains a [postive]{style="color:firebrick1;"} correlation with the following variables *(in order of strength)*:
+Below is a table visualizing correlation between our variables. We can see the home price maintains a<span style="color:firebrick1;">positive</span> correlation with the following variables *(in order of strength)*:
 
 -   heated square footed of the home
 -   home quality
@@ -231,6 +228,7 @@ st_drop_geometry(CLT_internal) %>%
      geom_point(size = .5) + geom_smooth(method = "lm", se=F, colour = "hotpink") +
      facet_wrap(~Variable, ncol = 3, scales = "free") +
      labs(title = "Price as a function of Internal and Spatial Variables") +
+  theme(axis.text.x = element_text(size=7)) +
   plotTheme()
 ```
 
@@ -246,11 +244,11 @@ Below are 4 maps including:
 
 4\. A map of school quality
 
-*<div align="center">Note: the first 3 maps are in relation to home prices within the Charlotte Metro Area.</div>*
+<div align="center">*Note: the first 3 maps are in relation to home prices within the Charlotte Metro Area.*</div>
 
-### Map 1: Home Price
 
-```{r price}
+```{r Maps, warning = FALSE, fig.height=8}
+grid.arrange(ncol=2,
 ggplot() +
   geom_sf(data = CLT_neighborhoods, fill = "grey40") +
   geom_sf(data = CLT_internal, aes(colour = q5(price)), 
@@ -260,12 +258,14 @@ ggplot() +
                    name="Quintile\nBreaks") +
   labs(title="Home Price", subtitle="Charlotte Metro Area") +
   labs(color = "Observed Sales Price (quintiles)") +
-  mapTheme()
-```
+   theme(plot.title=element_text(size=14, face='bold'),
+         legend.key.size = unit(1, 'cm'), #change legend key size
+        legend.key.height = unit(1, 'cm'), #change legend key height
+        legend.key.width = unit(1, 'cm'), #change legend key width
+        legend.title = element_text(size=14), #change legend title font size
+        legend.text = element_text(size=10)) + #change legend text font size
+  mapTheme(),
 
-### Map 2: Parks vs Home Price
-
-```{r parks}
 ggplot() +
   geom_sf(data = CLT_neighborhoods, fill = "grey70") +
   geom_sf(data = CLT_internal, aes(colour = q5(price)), 
@@ -274,13 +274,15 @@ ggplot() +
                    labels=qBr(CLT_internal,"price"),
                    name="Quintile\nBreaks") +
   geom_sf(data = CLT_parks, color="darkgreen") +
-  labs(title="Park Locations vs Home Price", subtitle="Charlotte Metro Area") +
-  mapTheme()
-```
+  labs(title="Park Locations vs Home Price", subtitle="Charlotte Metro Area") + 
+  theme(plot.title=element_text(size=14, face='bold'),
+        legend.key.size = unit(1, 'cm'), 
+        legend.key.height = unit(1, 'cm'),
+        legend.key.width = unit(1, 'cm'), 
+        legend.title = element_text(size=14), 
+        legend.text = element_text(size=10)) + 
+  mapTheme(),
 
-### Map 3: Grocery Stores vs Home Price
-
-```{r grocery}
 ggplot() +
   geom_sf(data = CLT_neighborhoods, fill = "grey30") +
   geom_sf(data = CLT_internal, aes(colour = q5(price)), 
@@ -289,19 +291,27 @@ ggplot() +
                    labels=qBr(CLT_internal,"price"),
                    name="Quintile\nBreaks") +
   geom_sf(data = CLT_grocery, color="deepskyblue") +
-  labs(title="Grocery Store Locations vs Home Price", subtitle="Charlotte Metro Area") +
-  mapTheme()
-```
+  labs(title="Grocery Store Locations vs Home Price", subtitle="Charlotte Metro Area") + 
+  theme(plot.title=element_text(size=14, face='bold'),
+    legend.key.size = unit(1, 'cm'), 
+        legend.key.height = unit(1, 'cm'),
+        legend.key.width = unit(1, 'cm'), 
+        legend.title = element_text(size=14), 
+        legend.text = element_text(size=10)) + 
+  mapTheme(),
 
-### Map 4: School Quality
-
-```{r schoolqual}
 ggplot() +
   geom_sf(data = CLT_schools, aes(fill=factor(Quality), color=factor(Quality))) +
   scale_fill_brewer(palette="RdYlGn") +
   scale_color_brewer(palette="RdYlGn") +
   labs(title="School Quality", subtitle="Niche.com ratings; Charlotte Metro Area") +
-  mapTheme()
+   theme(plot.title=element_text(size=14, face='bold'),
+     legend.key.size = unit(1, 'cm'), 
+        legend.key.height = unit(1, 'cm'), 
+        legend.key.width = unit(1, 'cm'),
+        legend.title = element_text(size=14), 
+        legend.text = element_text(size=10)) + 
+  mapTheme())
 ```
 
 # Regression Model
@@ -354,16 +364,16 @@ reg.training <- lm(price ~ ., data = st_drop_geometry(charlotte.training) %>%
 summary(reg.training)
 ```
 
-## Evaluating Generalizability
+## Evaluating Generalizability # 1
 
 To test the strength (accuracy) of our model in its ability to predict prices, we will:
 
-1.  Find the **mean absolute error (MAE)** + **mean absolute percentage error (MAPE),**
+1.  Find the mean absolute error (MAE) + mean absolute percentage error (MAPE)
 2.  Conduct cross-validation tests
 3.  Plot predicted prices as a function of observed prices
-4.  Map our test set residuals, including a **Moran's I test and a plot** of the spatial lag in errors
+4.  Map our test set residuals, including a Moran's I test and a plot of the spatial lag in errors
 5.  Map of mean absolute percentage error (MAPE) by neighborhood.
-6.  Create a scatterplot plot of MAPE by neighborhood as a function of mean price by neighborhood
+6.  Create a scatterplot of MAPE by neighborhood as a function of mean price by neighborhood
 
 ### MAE & MAPE
 
@@ -427,14 +437,15 @@ charlotte_APE.sf <-
   st_as_sf(sf_column_name=geometry) %>%
   st_transform('ESRI:103500')
 
-ggplot() +
+grid.arrange(ncol=2,
+             ggplot() +
   geom_sf(data = CLT_neighborhoods, fill = "grey40") +
   geom_sf(data = charlotte_APE.sf, aes(color = q5(price.Predict)), size = .25) +
   scale_colour_manual(values = palette5,
                    labels=qBr(charlotte.APE,"price"),
                    name="Quintile\nBreaks") +
   labs(title="Predicted Sales Price") +
-  mapTheme()
+  mapTheme(),
 
 ggplot() +
   geom_sf(data = CLT_neighborhoods, fill = "grey40") +
@@ -448,7 +459,7 @@ ggplot() +
                show.limits = TRUE,
                guide = "colorsteps"
   ) +
-  mapTheme()
+  mapTheme())
 ```
 
 
@@ -481,9 +492,9 @@ geom_label(
   fill="grey80")
 ```
 
-## Evaluating Spatial Bias
+### Moran's I
 
-By calculating Moran's I for this dataset, we are determining if there is a spatial relationship among home sales in Charlotte. As seen in the outcome, Moran's I was calculated to be high, meaning there is a spatial relationship in the predicted errors that must be accounted for.
+By calculating Moran's I for this dataset, we are determining if there is a spatial autocorrelation. relationship among home sales in Charlotte. As seen in the outcome, Moran's I was calculated to be high, meaning there is a spatial relationship in the predicted errors that must be accounted for.
 
 ```{r Moran}
 #Calculating Moran's I
@@ -499,6 +510,7 @@ charlotte.test %>%
 moranTest <- moran.mc(charlotte.test$price.Error, 
                       spatialWeights.test, nsim = 999, na.action=na.exclude, , zero.policy = TRUE)
 
+# Observed and permuted Moran's I 
 ggplot(as.data.frame(moranTest$res[c(1:999)]), aes(moranTest$res[c(1:999)])) +
   geom_histogram(binwidth = 0.01) +
   geom_vline(aes(xintercept = moranTest$statistic), colour = "#FA7800",size=1) +
@@ -510,12 +522,12 @@ ggplot(as.data.frame(moranTest$res[c(1:999)]), aes(moranTest$res[c(1:999)])) +
   plotTheme()
 ```
 
-## Accounting for Neighborhood
+### Accounting for Neighborhood
 
-We introduce neighborhoods into the model to attempt to account to spatial bias in our predictions. This increases the R-squared of the model.
+We introduce neighborhoods into the model in an attempt to account for spatial bias in our predictions. Specifically, we have included "Census Block Groups" as it was readily available information. The addition of this variable increases the R-squared of our model, meaning it is able to explain more of the observed variance with neighborhoods included than without it. 
 
 ```{r nhood}
-#Adjusting for neighborhod
+#Adjusting for neighborhood
 reg.nhood <- lm(price ~ ., data = as.data.frame(charlotte.training) %>% 
                                  dplyr::select(price, heatedarea, 
                                                quality, NUM_FLOORS.cat,
@@ -546,7 +558,7 @@ sales_predictions.df <- as.data.frame(st_drop_geometry(sales_predictions.sf))
 sales_predictions.df <- sales_predictions.df[c(30,43)]
 
 
-write.csv(sales_predictions.df,"C:/Users/14145/OneDrive/Documents/GitHub/Zestimate-Project/Quisqueyanes.csv", row.names = FALSE)
+write.csv(sales_predictions.df,"Quisqueyanes.csv", row.names = FALSE)
   
 ```
 
@@ -558,10 +570,6 @@ bothRegressions <-
     dplyr::select(charlotte.test.nhood, starts_with("price"), Regression, MIDD_NAME) %>%
       mutate(lagPriceError = lag.listw(spatialWeights.test, price.Error, NAOK=TRUE)))    
 ```
-
-## Visualizing Neighborhood Effects
-
-While controlling for neighborhood improved our model, the difference is small and hard to notice visually like this.
 
 ```{r}
 #Neighborhood effect results
@@ -576,8 +584,11 @@ bothRegressions %>%
   facet_wrap(~Regression) +
   labs(title="Predicted sale price as a function of observed price",
        subtitle="Orange line represents a perfect prediction; Green line represents prediction") +
+  theme(axis.text.x = element_text(margin = margin(3, 3, 3, 3)))
   plotTheme()
 ```
+
+While controlling for neighborhood improved our model, the difference is small and hard to notice visually like this.
 
 ```{r}
 #Scatter plot of MAPE by neighborhood mean price
@@ -593,20 +604,21 @@ npa.price.sf <- charlotte.test %>%
 
 MAPE_by_NPA <- merge(st_drop_geometry(npa.mean.sf), npa.price.sf, by="MIDD_NAME")
 
+grid.arrange(ncol=2,
 ggplot(MAPE_by_NPA, aes(mean_Price, mean_APE))+
   geom_jitter(height=2, width=2)+
   ylim(-5,5)+
   geom_smooth(method = "lm", aes(mean_Price, mean_APE), se = FALSE, colour = "red") +
   labs(title = "MAPE by Neighborhood Mean Sales Price",
        x = "Mean Home Price", y = "MAPE") +
-  plotTheme()
+  plotTheme(),
 
-# ggplot(npa.mean.sf, aes(x=MIDD_NAME, y=mean_APE)) +
-#   geom_point(alpha=0.5) +
-#   labs(title="Sales Price vs. Prediction Error", subtitle="Charlotte Area Home Sales") +
-#   ylab("Mean Absolute % Error") +
-#   xlab("Observed Sales Price") +
-#   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggplot(npa.mean.sf, aes(x=MIDD_NAME, y=mean_APE)) +
+geom_point(alpha=0.5) +
+labs(title="Sales Price vs. Prediction Error", subtitle="Charlotte Area Home Sales") +
+ylab("Mean Absolute % Error") +
+ xlab("Observed Sales Price") +
+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)))
 
 
 ```
@@ -626,6 +638,9 @@ st_drop_geometry(charlotte.test) %>%
       labs(title = "Mean test set MAPE by Block Groups", subtitle="Charlotte Metro Area") +
       mapTheme()
 ```
+
+# TidyCensus: Evaluating Generalizability # 2
+Using the TidyCensus package, we split the Charlotte Metro into two groups: **"majority white"** and **"majority non-white"** to test or model's generalizability.
 
 # Conclusion
 
