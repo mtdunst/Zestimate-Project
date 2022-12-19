@@ -304,11 +304,14 @@ ggplot() +
   mapTheme()
 ```
 
-# Time to Train!
+# Regression Model
+
+## Dividing the Data 
 
 Now that we have identified important variables, we will build out model by dividing the data into training/test sets.
+Our data will be partitioned as a 60/40 train-test split. After, we'll run a regression on our training set (60%) and use the results to determine the generalizability with our 'test' data.
 
-*Before dividing the dataset we will create categorical variables for the number of floors, bathrooms, and bedrooms for a given home.*
+***However, before dividing the dataset we will create categorical variables for the number of floors, bathrooms, and bedrooms for a given home.***
 
 ```{r floors}
 #Re-engineering data as categorical: number of floors
@@ -333,10 +336,6 @@ CLT_internal <-
   mutate(NUM_BATHS.cat = ifelse(totbaths <= 2.5, "Up to 2.5 Bathrooms",
                                ifelse(totbaths <= 3.5 | totbaths <= 4.5, "Up to 4 Bathrooms", "5+ Bathrooms")))
 ```
-
-## Dividing the Data
-
-Our data will be partitioned as a 60/40 train-test split. After, we'll run a regression on our training set (60%) and use the results to determine the generalizability with our 'test' data.
 
 ```{r}
 #Creating training data
@@ -404,9 +403,10 @@ reg.cv <-
                                                age, HH_inc, college_perc, 
                                                park_nn1), 
      method = "lm", trControl = fitControl, na.action = na.pass)
-
+# Table
 stargazer(as.data.frame(reg.cv$resample), type="text", digits=1, title="Cross Validation Results")
 
+# Plot 
 ggplot(reg.cv$resample, aes(x=MAE)) +
   geom_histogram(fill = "darkgreen") +
   labs(title = "Count of Mean Average Error During Cross-Validation") +
@@ -449,34 +449,36 @@ ggplot() +
                guide = "colorsteps"
   ) +
   mapTheme()
+```
 
+
+```{r}
 #Predicted vs observed sales price
-# ggplot(
-#   charlotte_APE.sf, aes(price, price.Predict, col = price.APE)) +
-#   binned_scale(aesthetics = "color",
-#                scale_name = "stepsn", 
-#                palette = function(x) c("#1a9641", "#a6d96a", "#ffffbf", "#fdae61", "#d7191c"),
-#                breaks = c(0.10, 0.20, 0.5, 0.75),
-#                limits = c(0, 50),
-#                show.limits = TRUE, 
-#                guide = "colorsteps"
-#   ) +
-#     geom_point(size=1) +
-#   scale_y_continuous(limits = c(0, 4000000)) +
-#   scale_x_continuous(limits = c(0, 4000000)) +
-#   labs(title="Sales Price vs. Predicted", subtitle="Charlotte Metro Area") +
-#   ylab("Predicted Sales Price (in dollars)") +
-#   xlab("Observed Sales Price (in dollars)") +
-#   geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "black", size = 0.5) +
-#   labs(color = "Absolute % Error") +
-#   geom_label(
-#     label="0% error line", 
-#     x=3500000,
-#     y=3000000,
-#     label.padding = unit(0.25, "lines"), # Rectangle size around label
-#     label.size = 0.15,
-#     color = "black",
-#     fill="grey80")
+ggplot(
+charlotte_APE.sf, aes(price, price.Predict, col = price.APE)) +
+binned_scale(aesthetics = "color",
+    scale_name = "stepsn", 
+    palette = function(x) c("#1a9641", "#a6d96a", "#ffffbf", "#fdae61", "#d7191c"),
+    breaks = c(0.10, 0.20, 0.5, 0.75),
+    limits = c(0, 50),
+    show.limits = TRUE, 
+    guide = "colorsteps") +
+geom_point(size=1) +
+scale_y_continuous(limits = c(0, 4000000)) +
+scale_x_continuous(limits = c(0, 4000000)) +
+labs(title="Sales Price vs. Predicted", subtitle="Charlotte Metro Area") +
+ylab("Predicted Sales Price (in dollars)") +
+xlab("Observed Sales Price (in dollars)") +
+geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "black", size = 0.5) +
+labs(color = "Absolute % Error") +
+geom_label(
+  label="0% error line", 
+  x=3500000,
+  y=3000000,
+  label.padding = unit(0.25, "lines"), # Rectangle size around label
+  label.size = 0.15,
+  color = "black",
+  fill="grey80")
 ```
 
 ## Evaluating Spatial Bias
