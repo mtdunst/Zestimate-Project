@@ -259,7 +259,7 @@ ggplot() +
   labs(title="Home Price", subtitle="Charlotte Metro Area") +
   labs(color = "Observed Sales Price (quintiles)") +
    theme(plot.title=element_text(size=14, face='bold'),
-         legend.key.size = unit(1, 'cm'), #change legend key size
+         legend.key.size = unit(1.5, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
         legend.title = element_text(size=14), #change legend title font size
@@ -276,7 +276,7 @@ ggplot() +
   geom_sf(data = CLT_parks, color="darkgreen") +
   labs(title="Park Locations vs Home Price", subtitle="Charlotte Metro Area") + 
   theme(plot.title=element_text(size=14, face='bold'),
-        legend.key.size = unit(1, 'cm'), 
+        legend.key.size = unit(1.5, 'cm'), 
         legend.key.height = unit(1, 'cm'),
         legend.key.width = unit(1, 'cm'), 
         legend.title = element_text(size=14), 
@@ -293,7 +293,7 @@ ggplot() +
   geom_sf(data = CLT_grocery, color="deepskyblue") +
   labs(title="Grocery Store Locations vs Home Price", subtitle="Charlotte Metro Area") + 
   theme(plot.title=element_text(size=14, face='bold'),
-    legend.key.size = unit(1, 'cm'), 
+    legend.key.size = unit(1.5, 'cm'), 
         legend.key.height = unit(1, 'cm'),
         legend.key.width = unit(1, 'cm'), 
         legend.title = element_text(size=14), 
@@ -306,7 +306,7 @@ ggplot() +
   scale_color_brewer(palette="RdYlGn") +
   labs(title="School Quality", subtitle="Niche.com ratings; Charlotte Metro Area") +
    theme(plot.title=element_text(size=14, face='bold'),
-     legend.key.size = unit(1, 'cm'), 
+     legend.key.size = unit(1.5, 'cm'), 
         legend.key.height = unit(1, 'cm'), 
         legend.key.width = unit(1, 'cm'),
         legend.title = element_text(size=14), 
@@ -316,7 +316,7 @@ ggplot() +
 
 # Regression Model
 
-## Dividing the Data 
+## Splitting the Data 
 
 Now that we have identified important variables, we will build out model by dividing the data into training/test sets.
 Our data will be partitioned as a 60/40 train-test split. After, we'll run a regression on our training set (60%) and use the results to determine the generalizability with our 'test' data.
@@ -588,7 +588,7 @@ bothRegressions %>%
   plotTheme()
 ```
 
-While controlling for neighborhood improved our model, the difference is small and hard to notice visually like this.
+While controlling for neighborhood improved our model, the difference is small and hard to notice visually as seen in the plot above.
 
 ```{r}
 #Scatter plot of MAPE by neighborhood mean price
@@ -640,7 +640,25 @@ st_drop_geometry(charlotte.test) %>%
 ```
 
 # TidyCensus: Evaluating Generalizability # 2
-Using the TidyCensus package, we split the Charlotte Metro into two groups: **"majority white"** and **"majority non-white"** to test or model's generalizability.
+Using the TidyCensus package, we split the Charlotte Metro Area into two groups: **"majority white"** and **"majority non-white"** to test our model's generalizability. Currently, white non-Hispanic folk represent 56.6% of Mecklenberg County's population, so it is worthwhile to check whether the accuracy of our predictions is dependent on demographic context.[(Source)](https://www.census.gov/quickfacts/fact/table/mecklenburgcountynorthcarolina/PST045221) 
+```{r}
+# Adding race data
+Race <- 
+  st_read("Population.shp", crs = "ESRI:103500")
+
+# Creating majority white column
+Context <-
+  BoulderCensusData %>%
+  mutate(Race = ifelse(PerNonWhit > 15, "Majority Non-White", "Majority White"),
+         Income = ifelse(MedHHInc > 80000, "High Income", "Low Income")) 
+
+# Plot 
+ggplot() + geom_sf(data = na.omit(Context), aes(fill = Race)) +
+    scale_fill_manual(values = c("medium purple 3", "honeydew 3"), name="Race Context") +
+    labs(title = "Figure 14.1: Race in Boulder, CO", 
+         caption = "Figure 8.1") +
+    mapTheme() + theme(legend.position="bottom")
+```
 
 # Conclusion
 
