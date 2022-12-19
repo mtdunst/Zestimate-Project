@@ -644,7 +644,8 @@ Using the TidyCensus package, we split the Charlotte Metro Area into two groups:
 ```{r}
 # Adding race data
 Race <- 
-  st_read("Population.shp", crs = "ESRI:103500")
+  st_read("https://github.com/mtdunst/Zestimate-Project/blob/main/Population.geojson") %>%
+  st_transform(st_crs(CLT_internal))
 
 # Creating majority white column
 Context <-
