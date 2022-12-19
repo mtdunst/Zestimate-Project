@@ -140,9 +140,11 @@ CLT_neighborhoods <-
 
 So far, we have added *internal*, *amenities*, and *spatial structure* variables. However, in order to build our model and analyze how these variables relate to home sales, we must modify them. We'll achieve this using 2 techniques:
 
-**1. K-nearest neighbor (KNN):** this will find the distance between a given home and the most near amenities (school, grocery store, park). **2. Spatial join (SJ):** this will join our spatial structure data (educational attainment, neighborhoods) to our internal varies (Charlotte homes sales)
+**1. K-nearest neighbor (KNN):** this will find the distance between a given home and the most near amenities (school, grocery store, park). 
 
-*Note to instructor: the nn_function did not work as normal, perhaps due to the geometry featuring multiple points (versus just X and Y), so we took the central point of each feature.*
+**2. Spatial join (SJ):** this will join our spatial structure data (educational attainment, neighborhoods) to our internal varies (Charlotte homes sales)
+
+*<div align="center">Note to instructor: the nn_function did not work as normal, perhaps due to the geometry featuring multiple points (versus just X and Y), so we took the central point of each feature.</div>*
 
 ```{r}
 # Most near school, grocery store, and park 
@@ -212,6 +214,7 @@ ggcorrplot(
   type="lower",
   insig = "blank") +  
     labs(title = "Correlation Matrix of Numeric Variables", tl.cex = 0.5, tl.col = "black") +
+  theme(axis.text.x = element_text(size = 10)) +
   plotTheme()
 ```
 
@@ -243,7 +246,7 @@ Below are 4 maps including:
 
 4\. A map of school quality
 
-*Note: the first 3 maps are in relation to home prices within the Charlotte Metro Area.*
+*<div align="center">Note: the first 3 maps are in relation to home prices within the Charlotte Metro Area.</div>*
 
 ### Map 1: Home Price
 
