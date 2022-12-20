@@ -13,6 +13,8 @@ output:
 knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
 # Load some libraries
 rm(list = ls())
+library(knitr)
+library(kableExtra)
 library(tidycensus)
 library(dplyr)
 library(viridis)
@@ -54,6 +56,18 @@ Welcome! **The purpose of this project is to produce an algorithm that can help 
 1.  Improves user experience
 2.  Provides context for anticipated property taxes and homeowner's insurance
 3.  Alleviates historic and systemic biases commonplace with home valuations in neighborhoods of color
+4.  Supports informed decision-making among families regarding long-term investing (b/c buying a home is an investment)
+
+The gains from such an algorithm are worthwhile, however this project proved to be a challenging exercise. Namely, it is incredibly difficult to quantify the features which influence home values without leaning into historical disparities (homes in 'good' versus 'bad' areas are often paired with race|class|amenity imparity.) Likewise, the presence of colinear variables may effect the performance of our model. 
+
+We employed the ***hedonic model*** for this project (HM). Simply put, HM refers to a regression model that estimates the influence various factors have on the price of a good (i.e.home) and is commonly used in real estate pricing. In this case, home price served as our dependent variable, whilst various features served as our independent variables. We identified a collection of both physical and demographic features we believed influence the price of a home, cleaned these datasets and tested their significance towards home valuation. Furthermore, we checked our results through cross-validation testing, and employed statistical metrics such as mean absolute error (MAE), mean absolute percentage error (MAPE), and Moran's I.
+
+Ultimately, we produced a functional model though with a major weakness: it is not generalizable across majority white vs majority non-white neighborhoods. Specifically, we saw an increase in our MAPE within majority non-white neighborhoods as well as lower average home valuations. 
+We review the reasons for this later.
+
+Nonetheless, this project was a great exercise. We look forward to you reviewing our model and code!
+
+<div align="center">*Click "code" on the right-hand side to view what takes place behind-the-scenes.*</div>
 
 # Data Wrangling
 
@@ -189,7 +203,7 @@ stargazer(as.data.frame(ss_spatial), type="text", digits=1, title = "Descriptive
 
 ## Correlation Matrix
 
-Below is a table visualizing correlation between our variables. We can see the home price maintains a<span style="color:firebrick1;">positive</span> correlation with the following variables *(in order of strength)*:
+Below is a table visualizing correlation between our variables. We can see the home price maintains a <span style="color:firebrick1;">positive</span> correlation with the following variables *(in order of strength)*:
 
 -   heated square footed of the home
 -   home quality
@@ -258,7 +272,7 @@ ggplot() +
                    name="Quintile\nBreaks") +
   labs(title="Home Price", subtitle="Charlotte Metro Area") +
   labs(color = "Observed Sales Price (quintiles)") +
-   theme(plot.title=element_text(size=14, face='bold'),
+   theme(plot.title=element_text(size=12, face='bold'),
          legend.key.size = unit(1.5, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
@@ -275,7 +289,7 @@ ggplot() +
                    name="Quintile\nBreaks") +
   geom_sf(data = CLT_parks, color="darkgreen") +
   labs(title="Park Locations vs Home Price", subtitle="Charlotte Metro Area") + 
-  theme(plot.title=element_text(size=14, face='bold'),
+  theme(plot.title=element_text(size=12, face='bold'),
         legend.key.size = unit(1.5, 'cm'), 
         legend.key.height = unit(1, 'cm'),
         legend.key.width = unit(1, 'cm'), 
@@ -292,7 +306,7 @@ ggplot() +
                    name="Quintile\nBreaks") +
   geom_sf(data = CLT_grocery, color="deepskyblue") +
   labs(title="Grocery Store Locations vs Home Price", subtitle="Charlotte Metro Area") + 
-  theme(plot.title=element_text(size=14, face='bold'),
+  theme(plot.title=element_text(size=12, face='bold'),
     legend.key.size = unit(1.5, 'cm'), 
         legend.key.height = unit(1, 'cm'),
         legend.key.width = unit(1, 'cm'), 
@@ -305,8 +319,8 @@ ggplot() +
   scale_fill_brewer(palette="RdYlGn") +
   scale_color_brewer(palette="RdYlGn") +
   labs(title="School Quality", subtitle="Niche.com ratings; Charlotte Metro Area") +
-   theme(plot.title=element_text(size=14, face='bold'),
-     legend.key.size = unit(1.5, 'cm'), 
+   theme(plot.title=element_text(size=12, face='bold'),
+     legend.key.size = unit(1.25, 'cm'), 
         legend.key.height = unit(1, 'cm'), 
         legend.key.width = unit(1, 'cm'),
         legend.title = element_text(size=14), 
@@ -571,6 +585,8 @@ bothRegressions <-
       mutate(lagPriceError = lag.listw(spatialWeights.test, price.Error, NAOK=TRUE)))    
 ```
 
+While controlling for neighborhood improved our model, the difference is small and hard to notice visually as seen in the plot below:
+
 ```{r}
 #Neighborhood effect results
 bothRegressions %>%
@@ -587,8 +603,6 @@ bothRegressions %>%
   theme(axis.text.x = element_text(margin = margin(3, 3, 3, 3)))
   plotTheme()
 ```
-
-While controlling for neighborhood improved our model, the difference is small and hard to notice visually as seen in the plot above.
 
 ```{r}
 #Scatter plot of MAPE by neighborhood mean price
@@ -618,7 +632,7 @@ geom_point(alpha=0.5) +
 labs(title="Sales Price vs. Prediction Error", subtitle="Charlotte Area Home Sales") +
 ylab("Mean Absolute % Error") +
  xlab("Observed Sales Price") +
- theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)))
+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))) 
 
 
 ```
@@ -640,33 +654,71 @@ st_drop_geometry(charlotte.test) %>%
 ```
 
 # TidyCensus: Evaluating Generalizability # 2
-Using the TidyCensus package, we split the Charlotte Metro Area into two groups: **"majority white"** and **"majority non-white"** to test our model's generalizability. Currently, white non-Hispanic folk represent 56.6% of Mecklenberg County's population, so it is worthwhile to check whether the accuracy of our predictions is dependent on demographic context.[(Source)](https://www.census.gov/quickfacts/fact/table/mecklenburgcountynorthcarolina/PST045221) 
+We split the Charlotte Metro Area into two groups: **"majority white"** and **"majority non-white"** to test our model's generalizability. Currently, white non-Hispanic folk represent 45.3% of Mecklenberg County's population, so it is worthwhile to check whether the accuracy of our predictions is dependent on demographic context. [(Source)](https://www.census.gov/quickfacts/fact/table/mecklenburgcountynorthcarolina/PST045221) 
+
+<div align="center">**For this test, "majority white" is defined as a census block group where ≥ 50% of total population identifies as white.**</div>
 ```{r}
 # Adding race data
 Race <- 
-  st_read("https://github.com/mtdunst/Zestimate-Project/blob/main/Population.geojson") %>%
+  st_read("Population.geojson") %>%
+  select(c(9,14)) %>%
   st_transform(st_crs(CLT_internal))
 
+# Remove those pesky NAs
+Race <- filter(Race, `Population` != 0) %>%
+  na.omit
+
+# Calculate percentage of white population
+Race <- Race %>%
+  mutate(PctWhite = ((`White`/`Population`)*100))
+
 # Creating majority white column
-Context <-
-  BoulderCensusData %>%
-  mutate(Race = ifelse(PerNonWhit > 15, "Majority Non-White", "Majority White"),
-         Income = ifelse(MedHHInc > 80000, "High Income", "Low Income")) 
+Race <- Race %>%
+  mutate(Race = ifelse(PctWhite > 50, "Majority White", "Majority Non-White")) 
 
 # Plot 
-ggplot() + geom_sf(data = na.omit(Context), aes(fill = Race)) +
-    scale_fill_manual(values = c("medium purple 3", "honeydew 3"), name="Race Context") +
-    labs(title = "Figure 14.1: Race in Boulder, CO", 
-         caption = "Figure 8.1") +
+ggplot() + geom_sf(data = na.omit(Race), aes(fill = `Race`)) +
+    scale_fill_manual(values = c("#FA7800", "honeydew 3"), name="Race Context") +
+    labs(title = "Race in Mecklenberg County, NC", 
+         subtitle = "Charlotte Metro Area") +
     mapTheme() + theme(legend.position="bottom")
 ```
+
+**Now, let's check to see whether our model's error(s) and predictions were consistent across varied demographic context:**
+```{r}
+# MAPE by race
+Variable <- c("Majority Non-White", "Majority White")
+Result <- c("30%", "25%")
+MAPE_race <- data.frame(Variable, Result)
+
+# Table 
+kable(MAPE_race, caption = "MAPE by Race") %>%
+    kable_styling("striped",full_width = F) 
+```
+
+```{r}
+# Mean price by race
+Variable <- c("Majority Non-White", "Majority White")
+Result <- c("$305,016", "$508,226.50")
+PRICE_race <- data.frame(Variable, Result)
+
+# Table
+kable(PRICE_race, caption = "Mean Predicted Price by Race") %>% 
+  kable_styling("striped",full_width = F) 
+```
+The tables above inform us that our model's errors across a varied demographic context were **inconsistent.** In particular -- our model experienced greater MAPE within Majority Non-White areas: an MAPE of 30% among Majority Non-White neighborhoods indicates on average, our predicted home price was 30% away from the actual value. This rate of error was 5 percentage points *lower* among Majority White neighborhoods. Likewise, our model's mean prediction price is highest among Majority White neighborhoods, indicating a bias against Majority Non-White areas. **For this reason, our model is not generalizable.** 
 
 # Conclusion
 
 ## Results
 
-Our variables are able to explain \~50% of the variation observed in Charlotte home prices (R squared). Our mean absolute error (MAE) is 106593.9, indicating that on average, our model's price predictions differ from actual home prices by \~\$106,593. This is fair and may be due to outlier (costly homes) included in our dataset. Ultimately, the model is generalizeable, but requires some tweaks before our Zillow pitch meeting :)
+Our variables are able to explain \~50% of the variation observed in Charlotte home prices based upon our R squared. Our mean absolute error (MAE) is 106593.9, indicating that on average, our model's price predictions differ from actual home prices by \~\$106,593. This is fair and may be due to outliers (costly homes) included in our dataset. However, when evaluating our model within a racial context, it does not perform consistently -- seemingly undervaluing homes in majority non-white neighborhoods (based upon average predicted price), and experiencing a greater mean absolute percentage error (MAPE) compared to majority white areas. The reasons for this are not immediately obvious and may be due to bias within our variables including: the inequitable distribution of amenities across the Charlotte Metro Area (e.g. parks, schools, grocery stores) as well as historical disparities in median household income and educational attainment ("spatial structure" variables). These features all factor into the viability and price of a home sale. 
 
 ## Discussion
 
-Overall, our model is sufficient and can be strengthened with a few modification. For example, for this project we were **not** allowed to use sales data towards our algorithm. This rule added a level of difficulty because sales data is a strong predictor towards home valuation (e.g. the sales' price of your neighbor's home is likely very similar to the sales price of your home). We were able to make up for this by emphasizing other variables such as \# of floors, bedrooms, bathrooms,housing quality, the quality of nearby schools, as well as a home's proximity to nearby grocery stores.
+The inconsistency of our model's performance within a racial context underscores the challenge in creating algorithms that are fair to all: Algorithms are *not* magic, but simply refer to historical data in an attempt to forecast the future. Unfortunately, real-life discrimination and disparity is embedded within this data, and an algorithm can easily exacerbate this bias if its primary objective is to increase 'efficiency' and greater care isn't taken to account for these social ills (perhaps by adding weights, omitting discriminatory variables, demographic parity, etc).
+
+**Ultimately, it would not be socially responsible or ethically sound to publish an algorithm with easily identifiable biases. So, this means we'll need to postpone our Zillow pitch meeting for now :)**
+
+Future iterations of this model should include sales data as it is a strong predictor towards home valuation (i.e. the sales' price of your neighbor's home is likely very similar to the sales price of your home). For this project, we were not allow to use this information which added a level of difficulty which tried to make up for by emphasizing other variables such as \# of floors, bedrooms, bathrooms, housing quality, the quality of nearby schools, as well as a home's proximity to nearby grocery stores. And of course, this model can be strengthened by accounting for biases in the datsets used in the model building process.
+ 
