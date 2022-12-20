@@ -45,8 +45,6 @@ source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-L
 
 palette5 <- c("#25CB10", "#5AB60C", "#8FA108",   "#C48C04", "#FA7800")
 
-census_api_key("228a8272ec0d91fff353de90cd84534d2ca03457", overwrite= TRUE)
-
 ```
 
 # Introduction
@@ -272,7 +270,7 @@ ggplot() +
                    name="Quintile\nBreaks") +
   labs(title="Home Price", subtitle="Charlotte Metro Area") +
   labs(color = "Observed Sales Price (quintiles)") +
-   theme(plot.title=element_text(size=12, face='bold'),
+   theme(plot.title=element_text(size=10, face='bold'),
          legend.key.size = unit(1.5, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
@@ -289,7 +287,7 @@ ggplot() +
                    name="Quintile\nBreaks") +
   geom_sf(data = CLT_parks, color="darkgreen") +
   labs(title="Park Locations vs Home Price", subtitle="Charlotte Metro Area") + 
-  theme(plot.title=element_text(size=12, face='bold'),
+  theme(plot.title=element_text(size=10, face='bold'),
         legend.key.size = unit(1.5, 'cm'), 
         legend.key.height = unit(1, 'cm'),
         legend.key.width = unit(1, 'cm'), 
@@ -306,7 +304,7 @@ ggplot() +
                    name="Quintile\nBreaks") +
   geom_sf(data = CLT_grocery, color="deepskyblue") +
   labs(title="Grocery Store Locations vs Home Price", subtitle="Charlotte Metro Area") + 
-  theme(plot.title=element_text(size=12, face='bold'),
+  theme(plot.title=element_text(size=10, face='bold'),
     legend.key.size = unit(1.5, 'cm'), 
         legend.key.height = unit(1, 'cm'),
         legend.key.width = unit(1, 'cm'), 
@@ -319,8 +317,8 @@ ggplot() +
   scale_fill_brewer(palette="RdYlGn") +
   scale_color_brewer(palette="RdYlGn") +
   labs(title="School Quality", subtitle="Niche.com ratings; Charlotte Metro Area") +
-   theme(plot.title=element_text(size=12, face='bold'),
-     legend.key.size = unit(1.25, 'cm'), 
+   theme(plot.title=element_text(size=10, face='bold'),
+     legend.key.size = unit(1, 'cm'), 
         legend.key.height = unit(1, 'cm'), 
         legend.key.width = unit(1, 'cm'),
         legend.title = element_text(size=14), 
